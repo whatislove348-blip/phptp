@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🌍 Advanced DNS Map & Domain Analyzer</title>
+  <title>🌍 WHOIS + DNS Map & Domain Analyzer</title>
   <style>
     body {font-family:'Poppins',sans-serif;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);color:#fff;margin:0;padding:0;overflow-x:hidden;}
     .container {max-width:1200px;margin:50px auto;padding:40px;background:rgba(255,255,255,0.08);border-radius:20px;box-shadow:0 0 40px rgba(0,255,255,0.3);} 
@@ -25,13 +25,13 @@
     #dnsTable{width:100%;border-collapse:collapse;margin-top:20px;text-align:center;}
     #dnsTable th,#dnsTable td{border:1px solid rgba(255,255,255,0.2);padding:10px;}
     #dnsTable th{background:rgba(255,255,255,0.15);color:#00eaff;}
+    .whois-section{margin-top:20px;padding:15px;background:rgba(255,255,255,0.05);border-radius:10px;}
     .ok-icon{color:#00ff9c;font-size:20px;}
     .fail-icon{color:#ff4c4c;font-size:20px;}
     .chart-container {margin-top: 30px; text-align:center;}
     .summary-box {margin-top: 20px; display:flex; justify-content:space-around; background:rgba(255,255,255,0.1); padding:15px; border-radius:10px;}
     .summary-item {text-align:center;}
     .summary-item h3 {color:#00eaff; margin-bottom:5px;}
-    .dark-light-toggle {position:fixed;top:20px;right:20px;background:#00eaff;color:#000;border:none;padding:10px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px #00eaff;}
     @keyframes fadeIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -39,10 +39,9 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
-  <button class="dark-light-toggle" id="toggleTheme">🌙</button>
   <div class="container">
-    <h1>🌐 Global DNS Propagation & Domain Analyzer</h1>
-    <p>Check worldwide DNS status, visualize success rate, and track propagation efficiency.</p>
+    <h1>🌐 WHOIS + Global DNS Propagation Analyzer</h1>
+    <p>Check WHOIS details, DNS status, and map-based propagation info for any domain.</p>
 
     <div class="input-group">
       <input id="domainInput" type="text" placeholder="Enter domain e.g. example.com">
@@ -57,9 +56,19 @@
       <button id="lookupBtn">Search</button>
     </div>
 
-    <div class="loading" id="loading">🔍 Checking DNS globally...</div>
+    <div class="loading" id="loading">🔍 Fetching WHOIS and DNS info...</div>
 
     <div id="result" class="result" style="display:none">
+      <div class="whois-section">
+        <h3>🔎 WHOIS Information</h3>
+        <p><strong>Domain:</strong> <span id="whoisDomain">—</span></p>
+        <p><strong>Registrar:</strong> <span id="whoisRegistrar">—</span></p>
+        <p><strong>Created:</strong> <span id="whoisCreated">—</span></p>
+        <p><strong>Updated:</strong> <span id="whoisUpdated">—</span></p>
+        <p><strong>Expires:</strong> <span id="whoisExpires">—</span></p>
+        <p><strong>Status:</strong> <span id="whoisStatus">—</span></p>
+      </div>
+
       <div class="summary-box">
         <div class="summary-item"><h3>Total Countries</h3><span id="totalCountries">0</span></div>
         <div class="summary-item"><h3>Working</h3><span id="workingCount" style="color:#00ff9c;">0</span></div>
@@ -79,23 +88,9 @@
     const domainInput=document.getElementById('domainInput');
     const loading=document.getElementById('loading');
     const resultBox=document.getElementById('result');
-    const toggleTheme=document.getElementById('toggleTheme');
     let map;
 
     const countries=[{name:'United States',lat:37.09,lon:-95.71},{name:'United Kingdom',lat:55.37,lon:-3.43},{name:'Germany',lat:51.16,lon:10.45},{name:'India',lat:20.59,lon:78.96},{name:'Brazil',lat:-14.23,lon:-51.92},{name:'Australia',lat:-25.27,lon:133.77},{name:'Japan',lat:36.20,lon:138.25},{name:'France',lat:46.22,lon:2.21},{name:'Canada',lat:56.13,lon:-106.34},{name:'South Africa',lat:-30.55,lon:22.93}];
-
-    toggleTheme.addEventListener('click',()=>{
-      document.body.classList.toggle('light');
-      if(document.body.classList.contains('light')){
-        document.body.style.background='linear-gradient(135deg,#ffffff,#c9d6ff)';
-        document.body.style.color='#000';
-        toggleTheme.textContent='🌙';
-      } else {
-        document.body.style.background='linear-gradient(135deg,#0f0c29,#302b63,#24243e)';
-        document.body.style.color='#fff';
-        toggleTheme.textContent='☀️';
-      }
-    });
 
     async function lookupDomain(){
       const domain=domainInput.value.trim().replace(/^https?:\/\//,'').replace(/^www\./,'');
@@ -104,10 +99,33 @@
       loading.style.display='block';
       resultBox.style.display='none';
 
+      await fetchWhois(domain);
       await checkDNSGlobal(domain,recordType.value);
 
       loading.style.display='none';
       resultBox.style.display='block';
+    }
+
+    async function fetchWhois(domain){
+      try{
+        const res=await fetch(`https://rdap.org/domain/${domain}`);
+        const data=await res.json();
+
+        document.getElementById('whoisDomain').textContent=domain;
+        const registrar=(data.entities||[]).find(e=>(e.roles||[]).includes('registrar'));
+        document.getElementById('whoisRegistrar').textContent=registrar?(registrar.vcardArray?registrar.vcardArray[1].find(i=>i[0]==='fn')[3]:registrar.handle):'N/A';
+
+        const created=(data.events.find(e=>/registration/i.test(e.eventAction))||{}).eventDate||data.created;
+        const updated=(data.events.find(e=>/last/i.test(e.eventAction))||{}).eventDate||data.updated;
+        const expiry=(data.events.find(e=>/expir/i.test(e.eventAction))||{}).eventDate||data.expires;
+
+        document.getElementById('whoisCreated').textContent=created?new Date(created).toISOString().split('T')[0]:'—';
+        document.getElementById('whoisUpdated').textContent=updated?new Date(updated).toISOString().split('T')[0]:'—';
+        document.getElementById('whoisExpires').textContent=expiry?new Date(expiry).toISOString().split('T')[0]:'—';
+        document.getElementById('whoisStatus').textContent=(data.status||[]).join(', ')||'Unknown';
+      }catch(err){
+        document.querySelector('.whois-section').innerHTML='<p style="color:#ff4c4c;">❌ WHOIS data not available for this domain.</p>';
+      }
     }
 
     async function checkDNSGlobal(domain,type){
@@ -137,7 +155,7 @@
           circle.bindPopup(`<b>${c.name}</b><br>Status: ${status==='ok'?'✅ Working':'❌ Down'}<br>${ip!== '—'?`IP: ${ip}`:''}`);
 
           status==='ok'?success++:fail++;
-        }catch{fail++;}
+        }catch{fail++}
       }
 
       const total=countries.length;
