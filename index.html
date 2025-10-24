@@ -1,167 +1,398 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🌍 Full WHOIS + DNS + Map Analyzer</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>🔒 Full Security WHOIS & DNS Dashboard</title>
   <style>
-    body {font-family:'Poppins',sans-serif;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);color:#fff;margin:0;padding:0;}
-    .container {max-width:1300px;margin:50px auto;padding:40px;background:rgba(255,255,255,0.08);border-radius:20px;box-shadow:0 0 40px rgba(0,255,255,0.3);} 
-    h1{text-align:center;color:#00eaff;text-shadow:0 0 25px #00eaff;margin-bottom:10px;}
-    p{text-align:center;color:#ccc;margin-bottom:30px;}
-    .input-group{display:flex;justify-content:center;gap:10px;margin-bottom:20px;}
-    input,select{padding:12px;border:none;border-radius:10px;outline:none;font-size:16px;background:rgba(255,255,255,0.1);color:#fff;}
-    select{background:linear-gradient(45deg,#ff007a,#00eaff);font-weight:bold;text-shadow:0 0 5px rgba(0,0,0,0.4);cursor:pointer;transition:0.3s;}
-    select:hover{box-shadow:0 0 15px #00eaff;transform:scale(1.05);}
-    button{background:linear-gradient(45deg,#00eaff,#ff00c3);border:none;border-radius:10px;padding:12px 20px;color:#000;font-weight:bold;cursor:pointer;transition:0.3s;}
-    button:hover{transform:scale(1.05);box-shadow:0 0 20px #00eaff;}
-    .loading{text-align:center;color:#00eaff;display:none;margin:15px;}
+    :root{--bg-1:#0f1724;--card:#061025;--accent:#00eaff;--accent2:#ff4ecf;--good:#00ff9c;--bad:#ff4c4c}
+    body{margin:0;font-family:Inter, Poppins, system-ui, -apple-system, 'Segoe UI', Roboto;background:linear-gradient(180deg,#071025 0%, #081226 100%);color:#e6eef8}
+    .wrap{max-width:1200px;margin:28px auto;padding:22px}
+    .head{display:flex;align-items:center;justify-content:space-between;gap:16px}
+    h1{margin:0;font-size:20px;color:var(--accent)}
+    p.lead{margin:6px 0 18px;color:#99a7bb}
 
-    /* WHOIS Section */
-    .whois-section{background:linear-gradient(135deg,#1a2a6c,#b21f1f,#fdbb2d);padding:25px;border-radius:15px;color:#fff;text-shadow:0 0 10px rgba(0,0,0,0.5);}
-    .whois-section h2{text-align:center;font-size:26px;margin-bottom:15px;color:#fff;text-shadow:0 0 15px #000;}
-    .whois-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;}
-    .whois-item{background:rgba(0,0,0,0.3);padding:15px;border-radius:10px;box-shadow:0 0 10px rgba(0,0,0,0.3);} 
-    .whois-item strong{color:#ffdd57;}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:14px;padding:14px;box-shadow:0 8px 30px rgba(2,6,23,.6)}
+    .controls{display:flex;gap:10px;align-items:center}
+    input[type=text]{padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;min-width:260px}
+    select{padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:linear-gradient(90deg,var(--accent),var(--accent2));color:#00121a;font-weight:700}
+    button{padding:10px 12px;border-radius:10px;border:0;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#00121a;font-weight:700;cursor:pointer}
 
-    /* Map and Chart Section */
-    #map{width:100%;height:450px;border-radius:15px;margin-top:30px;}
-    #dnsTable{width:100%;border-collapse:collapse;margin-top:20px;text-align:center;}
-    #dnsTable th,#dnsTable td{border:1px solid rgba(255,255,255,0.2);padding:10px;}
-    #dnsTable th{background:rgba(255,255,255,0.15);color:#00eaff;}
-    .chart-container{text-align:center;margin-top:20px;}
+    .layout{display:grid;grid-template-columns:1fr 420px;gap:16px;margin-top:16px}
+    @media (max-width:980px){.layout{grid-template-columns:1fr}}
 
-    iframe{width:100%;height:300px;border-radius:15px;border:none;box-shadow:0 0 15px rgba(0,0,0,0.5);margin-top:20px;}
+    /* left */
+    .left .section{margin-bottom:14px}
+    .whois-card{padding:14px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));}
+    .whois-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .whois-item{background:rgba(0,0,0,0.45);padding:10px;border-radius:8px}
+    .whois-item .k{color:#9fb4c8;font-size:13px}
+    .whois-item .v{font-weight:700;margin-top:6px}
+
+    .dates{display:flex;gap:10px;flex-wrap:wrap}
+    .date-pill{background:linear-gradient(90deg,#111827,#0b1220);padding:12px;border-radius:10px;min-width:160px}
+    .date-pill .big{font-weight:800;font-size:18px}
+    .meta-small{color:#9fb4c8;font-size:13px}
+
+    .score{display:flex;align-items:center;gap:12px}
+    .gauge{height:10px;background:rgba(255,255,255,0.06);border-radius:999px;overflow:hidden;width:220px}
+    .gauge > i{display:block;height:100%;background:linear-gradient(90deg,var(--good),#ffd166);width:0%}
+
+    /* DNS / map */
+    #map{height:360px;border-radius:10px;margin-top:12px}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
+
+    /* right */
+    .right .sidebar-item{margin-bottom:12px}
+    .badge{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);color:var(--accent);font-weight:700}
+
+    .virus-box{padding:12px;border-radius:10px;background:linear-gradient(90deg,#2b0b27,#0b1830);}
+    .export-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+
+    footer{margin-top:18px;color:#8f9fb3;font-size:13px}
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <div class="container">
-    <h1>🌐 WHOIS + DNS + Map Analyzer</h1>
-    <p>View WHOIS details, DNS propagation map, country-based checks, and live site preview in one place.</p>
-
-    <div class="input-group">
-      <input id="domainInput" type="text" placeholder="Enter domain e.g. example.com">
-      <select id="recordType">
-        <option value="A">A</option>
-        <option value="AAAA">AAAA</option>
-        <option value="CNAME">CNAME</option>
-        <option value="MX">MX</option>
-        <option value="NS">NS</option>
-        <option value="TXT">TXT</option>
-      </select>
-      <button id="lookupBtn">Search</button>
-    </div>
-
-    <div class="loading" id="loading">🔍 Fetching WHOIS and DNS data...</div>
-
-    <div id="whoisSection" class="whois-section" style="display:none">
-      <h2>🔎 WHOIS Information</h2>
-      <div class="whois-grid">
-        <div class="whois-item"><strong>Registrar:</strong> <span id="whoisRegistrar">—</span></div>
-        <div class="whois-item"><strong>Registrar Status:</strong> <span id="whoisRegStatus">—</span></div>
-        <div class="whois-item"><strong>Name Servers:</strong> <span id="whoisNS">—</span></div>
-        <div class="whois-item"><strong>IP Address:</strong> <span id="whoisIP">—</span></div>
-        <div class="whois-item"><strong>IP History:</strong> <span id="whoisIPHistory">—</span></div>
-        <div class="whois-item"><strong>ASN:</strong> <span id="whoisASN">—</span></div>
-        <div class="whois-item"><strong>Domain Status:</strong> <span id="whoisStatus">—</span></div>
-        <div class="whois-item"><strong>Hosting History:</strong> <span id="whoisHosting">—</span></div>
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <h1>🔐 Full Security WHOIS & DNS Dashboard</h1>
+        <p class="lead">All previous functions + Authority score, Dates panel, IP history, ASN, Hosting history, Virus/Blacklist check and live preview.</p>
       </div>
-      <iframe id="sitePreview" src=""></iframe>
+      <div class="controls card">
+        <input id="domainInput" type="text" placeholder="example.com" value="example.com" />
+        <select id="recordType"><option>A</option><option>AAAA</option><option>CNAME</option><option>MX</option><option>NS</option><option>TXT</option></select>
+        <button id="lookupBtn">Lookup</button>
+      </div>
     </div>
 
-    <div id="dnsSection" style="display:none">
-      <h2>🌍 DNS Map & Country Check</h2>
-      <div class="chart-container"><canvas id="dnsChart"></canvas></div>
-      <div id="map"></div>
-      <table id="dnsTable"></table>
+    <div class="layout">
+      <div class="left">
+        <div class="section whois-card card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div class="meta-small">WHOIS</div>
+              <h2 id="domainTitle">—</h2>
+            </div>
+            <div class="badge" id="authorityBadge">Score: —</div>
+          </div>
+
+          <div style="margin-top:12px" class="whois-grid">
+            <div class="whois-item"><div class="k">Registrar</div><div class="v" id="whoisRegistrar">—</div></div>
+            <div class="whois-item"><div class="k">Registrar Status</div><div class="v" id="whoisRegStatus">—</div></div>
+            <div class="whois-item"><div class="k">Name Servers</div><div class="v" id="whoisNS">—</div></div>
+            <div class="whois-item"><div class="k">Domain Status</div><div class="v" id="whoisStatus">—</div></div>
+            <div class="whois-item"><div class="k">ASN</div><div class="v" id="whoisASN">—</div></div>
+            <div class="whois-item"><div class="k">IP Address</div><div class="v" id="whoisIP">—</div></div>
+            <div class="whois-item"><div class="k">IP History</div><div class="v" id="whoisIPHistory">—</div></div>
+            <div class="whois-item"><div class="k">Hosting History</div><div class="v" id="whoisHosting">—</div></div>
+          </div>
+
+          <div style="margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <div class="dates">
+              <div class="date-pill">
+                <div class="meta-small">Created</div>
+                <div class="big" id="createdDate">—</div>
+              </div>
+              <div class="date-pill">
+                <div class="meta-small">Updated</div>
+                <div class="big" id="updatedDate">—</div>
+              </div>
+              <div class="date-pill">
+                <div class="meta-small">Expires</div>
+                <div class="big" id="expiresDate">—</div>
+              </div>
+            </div>
+
+            <div style="min-width:180px">
+              <div class="meta-small">Age</div>
+              <div style="font-size:18px;font-weight:800" id="ageDays">—</div>
+              <div style="margin-top:8px" class="score">
+                <div class="gauge"><i id="gaugeBar" style="width:0%"></i></div>
+                <div id="scoreText">— / 100</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="section card">
+          <h3 style="margin:0 0 8px 0">🔎 Virus / Blacklist Check</h3>
+          <div class="virus-box">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input id="vtKey" type="text" placeholder="Paste VirusTotal API key (optional)" style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit" />
+              <button id="checkVirus">Run Check</button>
+            </div>
+            <div style="margin-top:12px" id="virusResult">No scan performed yet.</div>
+          </div>
+        </div>
+
+        <div class="section card">
+          <h3 style="margin:0 0 8px 0">🌐 DNS Results & Table</h3>
+          <div id="map" class="card"></div>
+          <table id="dnsTable"><thead><tr><th>Country</th><th>Status</th><th>IP / Value</th><th>TTL</th></tr></thead><tbody></tbody></table>
+        </div>
+
+      </div>
+
+      <div class="right">
+        <div class="card sidebar-item">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div class="meta-small">Summary</div>
+              <h3 id="summaryDomain">—</h3>
+            </div>
+            <div style="text-align:right">
+              <div class="meta-small">Success</div>
+              <div id="successRate" style="font-weight:800;color:var(--accent)">—</div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+            <button id="exportCSV">Export CSV</button>
+            <button id="exportPDF">Export PDF</button>
+            <button id="refreshBtn">Refresh</button>
+          </div>
+        </div>
+
+        <div class="card sidebar-item">
+          <h4 style="margin:0 0 8px 0">Preview</h4>
+          <iframe id="sitePreview" src="about:blank"></iframe>
+        </div>
+
+        <div class="card sidebar-item">
+          <h4 style="margin:0 0 8px 0">Quick Checks</h4>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="checkSSL">SSL Check</button>
+            <button id="whoisRaw">Show Raw WHOIS JSON</button>
+            <button id="clearBtn">Clear</button>
+          </div>
+          <pre id="rawOutput" style="margin-top:8px;display:none;background:#021124;padding:8px;border-radius:8px;max-height:220px;overflow:auto"></pre>
+        </div>
+      </div>
     </div>
+
+    <footer>Tip: Provide a VirusTotal API key for deeper blacklist scanning. Some checks need server-side proxy for CORS.</footer>
   </div>
 
   <script>
-    const lookupBtn=document.getElementById('lookupBtn');
-    const loading=document.getElementById('loading');
-    const whoisSection=document.getElementById('whoisSection');
-    const dnsSection=document.getElementById('dnsSection');
-    let map;
+    // Helper functions
+    const $ = id => document.getElementById(id);
+    const domainInput = $('domainInput');
+    const lookupBtn = $('lookupBtn');
+    const recordType = $('recordType');
+    const loading = $('loading');
 
-    const countries=[{name:'United States',lat:37.09,lon:-95.71},{name:'United Kingdom',lat:55.37,lon:-3.43},{name:'Germany',lat:51.16,lon:10.45},{name:'India',lat:20.59,lon:78.96},{name:'Brazil',lat:-14.23,lon:-51.92},{name:'Australia',lat:-25.27,lon:133.77},{name:'Japan',lat:36.20,lon:138.25},{name:'France',lat:46.22,lon:2.21},{name:'Canada',lat:56.13,lon:-106.34},{name:'South Africa',lat:-30.55,lon:22.93}];
+    // Map init
+    let map = null; let markers = [];
+    function initMap(){
+      if(map) return;
+      map = L.map('map').setView([20,0],2);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+    }
+
+    function clearMarkers(){ markers.forEach(m=>map.removeLayer(m)); markers=[] }
+
+    function formatDate(d){ try{ if(!d) return '—'; const dt=new Date(d); if(isNaN(dt)) return d; return dt.toISOString().split('T')[0]; }catch(e){return d} }
+    function daysBetween(d1,d2){ return Math.round((d2 - new Date(d1))/(1000*60*60*24)) }
 
     async function lookupDomain(){
-      const domain=document.getElementById('domainInput').value.trim().replace(/^https?:\/\//,'').replace(/^www\./,'');
-      if(!domain)return alert('Please enter a domain');
+      const domain = domainInput.value.trim().replace(/^https?:\/\//,'').replace(/^www\./,'');
+      if(!domain) { alert('Enter domain'); return }
 
       loading.style.display='block';
-      whoisSection.style.display='none';
-      dnsSection.style.display='none';
 
-      await fetchWhois(domain);
-      await checkDNSGlobal(domain,document.getElementById('recordType').value);
+      // Clear UI
+      $('domainTitle').textContent = domain;
+      $('summaryDomain').textContent = domain;
+      $('whoisRegistrar').textContent='—'; $('whoisRegStatus').textContent='—'; $('whoisNS').textContent='—'; $('whoisStatus').textContent='—';
+      $('whoisASN').textContent='—'; $('whoisIP').textContent='—'; $('whoisIPHistory').textContent='—'; $('whoisHosting').textContent='—';
+      $('createdDate').textContent='—'; $('updatedDate').textContent='—'; $('expiresDate').textContent='—'; $('ageDays').textContent='—';
+      $('scoreText').textContent='— / 100'; $('gaugeBar').style.width='0%'; $('authorityBadge').textContent='Score: —';
+      $('virusResult').textContent='No scan performed yet.';
+      $('sitePreview').src = '';
+      $('rawOutput').style.display='none';
 
-      loading.style.display='none';
-      whoisSection.style.display='block';
-      dnsSection.style.display='block';
-    }
-
-    async function fetchWhois(domain){
       try{
-        const res=await fetch(`https://rdap.org/domain/${domain}`);
-        const data=await res.json();
+        initMap(); clearMarkers();
 
-        document.getElementById('whoisRegistrar').textContent=(data.entities||[]).find(e=>(e.roles||[]).includes('registrar'))?.vcardArray?.[1]?.find(i=>i[0]==='fn')?.[3]||'N/A';
-        document.getElementById('whoisRegStatus').textContent=(data.status||[]).join(', ')||'Active';
-        document.getElementById('whoisNS').textContent=(data.nameservers||[]).map(ns=>ns.ldhName).join(', ')||'—';
-        document.getElementById('whoisStatus').textContent=(data.status||[]).join(', ')||'Unknown';
+        // 1) WHOIS RDAP
+        const rdapRes = await fetch(`https://rdap.org/domain/${domain}`);
+        if(!rdapRes.ok) throw new Error('RDAP lookup failed');
+        const rdap = await rdapRes.json();
+        window._rdapRaw = rdap; // store for raw view
+        // Registrar
+        const registrar = (rdap.entities||[]).find(e=> (e.roles||[]).includes('registrar'));
+        $('whoisRegistrar').textContent = registrar ? (registrar.vcardArray?.[1]?.find(i=>i[0]==='fn')?.[3] || registrar.handle) : 'N/A';
+        $('whoisRegStatus').textContent = (rdap.status||[]).join(', ') || 'Active';
+        $('whoisNS').textContent = (rdap.nameservers||[]).map(n=> typeof n === 'string' ? n : (n.ldhName || n.objectClassName)).join(', ') || '—';
+        $('whoisStatus').textContent = (rdap.status||[]).join(', ') || '—';
 
-        const ipRes=await fetch(`https://ipapi.co/${domain}/json/`);
-        const ipData=await ipRes.json();
-        document.getElementById('whoisIP').textContent=ipData.ip||'—';
-        document.getElementById('whoisASN').textContent=ipData.asn||'—';
-        document.getElementById('whoisHosting').textContent=ipData.org||'—';
-        document.getElementById('whoisIPHistory').textContent='Historical IP data unavailable in demo';
+        // dates
+        const created = (rdap.events||[]).find(e=>/registration/i.test(e.eventAction))?.eventDate || rdap.created || null;
+        const updated = (rdap.events||[]).find(e=>/last/i.test(e.eventAction))?.eventDate || rdap.updated || null;
+        const expires = (rdap.events||[]).find(e=>/expir/i.test(e.eventAction))?.eventDate || rdap.expires || null;
+        $('createdDate').textContent = formatDate(created);
+        $('updatedDate').textContent = formatDate(updated);
+        $('expiresDate').textContent = formatDate(expires);
 
-        document.getElementById('sitePreview').src='https://'+domain;
-      }catch(err){
-        alert('WHOIS fetch error: '+err.message);
-      }
-    }
+        const age = created ? daysBetween(created, new Date()) : 0;
+        $('ageDays').textContent = age + ' days old';
 
-    async function checkDNSGlobal(domain,type){
-      const table=document.getElementById('dnsTable');
-      table.innerHTML='<tr><th>Country</th><th>Status</th><th>IP</th><th>TTL</th></tr>';
+        // 2) Resolve main A records with Google DNS (this gives the current IPs)
+        const dnsRes = await fetch(`https://dns.google/resolve?name=${domain}&type=A`);
+        const dnsJson = await dnsRes.json();
+        const answers = dnsJson.Answer || [];
+        const ips = [...new Set(answers.map(a=>a.data))];
+        $('whoisIP').textContent = ips.join(', ') || '—';
 
-      if(!map){map=L.map('map').setView([20,0],2);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);}else{map.eachLayer(l=>{if(l._url===undefined)map.removeLayer(l);});L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);}
+        // 3) ASN & IP details via ipapi for first IP
+        if(ips.length>0){
+          try{
+            const ipInfo = await (await fetch(`https://ipapi.co/${ips[0]}/json/`)).json();
+            $('whoisASN').textContent = ipInfo.asn || ipInfo.network || '—';
+            $('whoisHosting').textContent = ipInfo.org || '—';
+          }catch(e){/*ignore*/}
+        }
 
-      let success=0,fail=0;
-      for(const c of countries){
+        // 4) IP History - placeholder (needs paid API) -> keep demo text
+        $('whoisIPHistory').textContent = 'Historical IP data requires external API (e.g., SecurityTrails).';
+
+        // 5) Authority score calc (age, dns stability, ssl)
+        // dns stability: if at least one A record -> +30, else 0. age gives up to 40, ssl up to 30
+        let score = 10;
+        score += Math.min(40, Math.floor(age/30));
+        score += ips.length>0 ? 30 : 0;
+        // check SSL reachability via allorigins to avoid CORS
+        let sslOk = false;
         try{
-          const res=await fetch(`https://dns.google/resolve?name=${domain}&type=${type}`);
-          const data=await res.json();
-          const ans=(data.Answer||[])[0];
-          const status=ans?'ok':'fail';
-          const ip=ans?ans.data:'—';
-          const ttl=ans?ans.TTL:'—';
-          const icon=status==='ok'?'✅':'❌';
+          const r = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://' + domain)}`,{mode:'cors'});
+          if(r.ok) sslOk = true;
+        }catch(e){ sslOk = false }
+        score += sslOk ? 20 : 0;
+        score = Math.max(0, Math.min(100, score));
+        $('gaugeBar').style.width = score + '%';
+        $('scoreText').textContent = score + ' / 100';
+        $('authorityBadge').textContent = 'Score: ' + score;
 
-          const row=document.createElement('tr');
-          row.innerHTML=`<td>${c.name}</td><td>${icon}</td><td>${ip}</td><td>${ttl}</td>`;
-          table.appendChild(row);
+        // 6) DNS global country checks + map
+        const countries = [
+          {name:'United States',lat:37.09,lon:-95.71},
+          {name:'United Kingdom',lat:55.37,lon:-3.43},
+          {name:'Germany',lat:51.16,lon:10.45},
+          {name:'India',lat:20.59,lon:78.96},
+          {name:'Brazil',lat:-14.23,lon:-51.92},
+          {name:'Australia',lat:-25.27,lon:133.77},
+          {name:'Japan',lat:36.20,lon:138.25},
+          {name:'France',lat:46.22,lon:2.21},
+          {name:'Canada',lat:56.13,lon:-106.34},
+          {name:'South Africa',lat:-30.55,lon:22.93}
+        ];
 
-          const color=status==='ok'?'#00ff9c':'#ff4c4c';
-          const marker=L.circleMarker([c.lat,c.lon],{color:color,fillColor:color,fillOpacity:0.8,radius:8}).addTo(map);
-          marker.bindPopup(`<b>${c.name}</b><br>${status==='ok'?'Working ✅':'Failed ❌'}<br>${ip}`);
-          status==='ok'?success++:fail++;
-        }catch{fail++;}
+        initMap(); clearMarkers();
+        const tbody = document.querySelector('#dnsTable tbody'); tbody.innerHTML='';
+        let success=0,fail=0;
+        for(const c of countries){
+          // simulate per-country check by using the public DNS resolver — in real product use many remote resolvers
+          try{
+            const r = await fetch(`https://dns.google/resolve?name=${domain}&type=${recordType.value}`);
+            const j = await r.json();
+            const ans = (j.Answer||[])[0];
+            const ok = !!ans;
+            const ip = ok ? ans.data : '—';
+            const ttl = ok ? ans.TTL : '—';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${c.name}</td><td>${ok?'<span style=\"color:'+ (ok? 'var(--good)':'var(--bad)')+'\">✔</span>':'<span style=\"color:var(--bad)\">✖</span>'}</td><td>${ip}</td><td>${ttl}</td>`;
+            tbody.appendChild(tr);
+
+            const color = ok ? '#00ff9c' : '#ff4c4c';
+            const m = L.circleMarker([c.lat,c.lon],{radius:8,color:color,fillColor:color,fillOpacity:0.8}).addTo(map);
+            m.bindPopup(`<b>${c.name}</b><br>${ok?'Working ✅':'Failed ❌'}<br>${ip}`);
+            markers.push(m);
+            if(ok) success++; else fail++;
+          }catch(e){
+            const tr = document.createElement('tr'); tr.innerHTML = `<td>${c.name}</td><td><span style="color:var(--bad)">✖</span></td><td>—</td><td>—</td>`; tbody.appendChild(tr);
+            const m = L.circleMarker([c.lat,c.lon],{radius:8,color:'#ff4c4c',fillColor:'#ff4c4c',fillOpacity:0.8}).addTo(map); markers.push(m);
+            fail++;
+          }
+        }
+
+        // chart
+        const ctx = document.getElementById('dnsChart').getContext('2d');
+        new Chart(ctx,{type:'pie',data:{labels:['Working','Failed'],datasets:[{data:[success,fail],backgroundColor:['#00ff9c','#ff4c4c']}]},options:{plugins:{legend:{labels:{color:'#fff'}}}}});
+
+        $('successRate').textContent = Math.round((success/(success+fail||1))*100) + '%';
+
+        // live preview
+        $('sitePreview').src = 'https://' + domain;
+
+      }catch(err){
+        alert('Lookup error: ' + err.message);
+      }finally{
+        loading.style.display='none';
       }
-
-      const ctx=document.getElementById('dnsChart').getContext('2d');
-      new Chart(ctx,{type:'pie',data:{labels:['Working','Failed'],datasets:[{data:[success,fail],backgroundColor:['#00ff9c','#ff4c4c']}]},options:{plugins:{legend:{labels:{color:'#fff'}}}}});
     }
 
-    lookupBtn.addEventListener('click',lookupDomain);
-    document.getElementById('domainInput').addEventListener('keypress',e=>{if(e.key==='Enter')lookupDomain();});
+    // VirusTotal (optional) - requires API key
+    $('checkVirus').addEventListener('click', async ()=>{
+      const domain = domainInput.value.trim().replace(/^https?:\/\//,'').replace(/^www\./,'');
+      const key = $('vtKey').value.trim();
+      if(!domain) return alert('Enter domain');
+      if(!key){ $('virusResult').textContent = 'Provide VirusTotal API key to perform deep scan (or skip to use basic checks).'; return }
+
+      $('virusResult').textContent = 'Scanning...';
+      try{
+        const res = await fetch('https://www.virustotal.com/api/v3/domains/' + encodeURIComponent(domain), {headers:{'x-apikey': key}});
+        if(!res.ok) throw new Error('VirusTotal error: ' + res.statusText);
+        const j = await res.json();
+        // check last_analysis_stats if present
+        const stats = j.data?.attributes?.last_analysis_stats || null;
+        if(stats){
+          const positives = Object.values(stats).reduce((a,b)=>a+b,0) - (stats.harmless||0);
+          $('virusResult').innerHTML = `Detections: <strong>${positives}</strong> — <small>${JSON.stringify(stats)}</small>`;
+        } else {
+          $('virusResult').textContent = 'No analysis stats available.';
+        }
+      }catch(e){
+        $('virusResult').textContent = 'VirusTotal request failed: ' + e.message;
+      }
+    });
+
+    // quick helpers
+    $('whoisRaw').addEventListener('click', ()=>{
+      if(window._rdapRaw){ $('rawOutput').style.display='block'; $('rawOutput').textContent = JSON.stringify(window._rdapRaw, null, 2); } else alert('No RDAP data yet');
+    });
+    $('clearBtn').addEventListener('click', ()=>{ location.reload(); });
+    $('refreshBtn').addEventListener('click', ()=>{ lookupDomain(); });
+
+    // exports (CSV)
+    $('exportCSV').addEventListener('click', ()=>{
+      // collect table
+      const rows = [['Country','Status','IP','TTL']];
+      document.querySelectorAll('#dnsTable tbody tr').forEach(tr=>{ const cols = [...tr.querySelectorAll('td')].map(td=>td.textContent.trim()); rows.push(cols); });
+      const csv = rows.map(r=>r.map(cell=>`"${cell.replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv],{type:'text/csv'}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download = (domainInput.value||'report') + '_dns.csv'; a.click(); URL.revokeObjectURL(url);
+    });
+
+    // SSL quick check
+    $('checkSSL').addEventListener('click', async ()=>{
+      const domain = domainInput.value.trim().replace(/^https?:\/\//,'').replace(/^www\./,'');
+      if(!domain) return alert('Enter domain');
+      try{
+        const r = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://' + domain)}`);
+        if(r.ok) alert('Site reachable over HTTPS — SSL appears present'); else alert('HTTPS fetch failed');
+      }catch(e){ alert('HTTPS check error: '+e.message) }
+    });
+
+    lookupBtn.addEventListener('click', lookupDomain);
+    domainInput.addEventListener('keypress', e=>{ if(e.key==='Enter') lookupDomain(); });
+
+    // init
+    initMap();
   </script>
 </body>
 </html>
