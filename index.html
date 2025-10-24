@@ -3,240 +3,253 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Image Text Editor — Sample & Replace</title>
+  <title>Digits-only Image Editor (Click / OCR)</title>
   <style>
     :root{--bg:#f6f7fb}
     body{font-family:Inter,system-ui,Arial;background:var(--bg);margin:0;padding:18px;color:#0b1220}
     .wrap{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:360px 1fr;gap:18px}
-    .panel{background:#fff;border-radius:12px;padding:14px;box-shadow:0 4px 18px rgba(12,20,40,0.06)}
+    .panel{background:#fff;border-radius:12px;padding:14px;box-shadow:0 6px 20px rgba(12,20,40,0.06)}
     h2{margin:6px 0 12px;font-size:16px}
     label{display:block;font-size:13px;margin:8px 0 6px}
     input[type=file]{width:100%}
-    select,input[type=text],input[type=number]{width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ef}
-    button{padding:8px 10px;border-radius:8px;border:0;background:#2563eb;color:#fff;cursor:pointer}
-    #canvasWrap{display:flex;align-items:center;justify-content:center;background:#e9eefb;border-radius:12px;padding:12px}
-    canvas{max-width:100%;height:auto;border:1px solid #d6dbe8;border-radius:6px;cursor:crosshair}
+    button,select,input[type=text]{width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ef}
     .row{display:flex;gap:8px}
     .muted{color:#6b7280;font-size:13px}
-    .color-box{width:36px;height:36px;border-radius:6px;border:1px solid #cfd8ef}
-    .footer{margin-top:10px;color:#374151;font-size:13px}
+    canvas{max-width:100%;height:auto;border-radius:8px;border:1px solid #d6dbe8;background:#fff}
+    .color-box{width:34px;height:34px;border-radius:6px;border:1px solid #cfd8ef}
+    .controls{display:flex;gap:8px;margin-top:8px}
+    .small{width:48%}
+    .note{font-size:13px;color:#374151;margin-top:8px}
+    .overlay-rect{position:absolute;border:2px dashed rgba(37,99,235,0.9);pointer-events:none}
+    .input-popup{position:fixed;z-index:9999;background:#fff;padding:8px;border-radius:8px;box-shadow:0 6px 20px rgba(2,6,23,0.2)}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="panel">
-      <h2>Image · Text Replacer</h2>
+      <h2>Digits-only Image Editor</h2>
       <label>1) Upload image</label>
       <input id="file" type="file" accept="image/*">
 
-      <label>2) Text to place</label>
-      <input id="textInput" type="text" placeholder="নতুন লেখা লিখুন — type new text">
-
-      <label>3) Font & size</label>
+      <label>2) Mode</label>
       <div class="row">
-        <select id="fontSelect">
-          <option value="48px sans-serif">Sans (default)</option>
-          <option value="48px Arial">Arial</option>
-          <option value="48px 'Times New Roman'">Times New Roman</option>
-          <option value="48px 'Segoe UI'">Segoe UI</option>
-          <option value="48px 'Courier New'">Monospace</option>
-        </select>
-        <input id="fontSize" type="number" min="8" max="300" value="48">
+        <button id="ocrBtn">Auto-detect digits (OCR)</button>
+        <button id="manualBtn">Manual click mode</button>
       </div>
 
-      <label>4) Color sampling</label>
-      <div class="row" style="align-items:center">
-        <button id="sampleBtn">Sample color (click this, then click image)</button>
-        <div id="picked" class="color-box" title="Picked color"></div>
-        <div id="pickedHex" class="muted">#000000</div>
+      <label>3) Font family (try to match)</label>
+      <select id="fontFamily">
+        <option>Arial</option>
+        <option>Segoe UI</option>
+        <option>Times New Roman</option>
+        <option>Courier New</option>
+        <option>Roboto</option>
+      </select>
+
+      <div class="controls">
+        <button id="downloadBtn" class="small">Download PNG</button>
+        <button id="clearBtn" class="small">Reset edits</button>
       </div>
 
-      <label>5) Positioning</label>
-      <div class="row">
-        <button id="placeBtn">Place text by clicking canvas</button>
-        <button id="dragBtn">Drag to move</button>
-      </div>
-
-      <div style="margin-top:10px" class="row">
-        <button id="drawBtn">Draw text now</button>
-        <button id="clearBtn" style="background:#ef4444">Clear overlays</button>
-        <button id="downloadBtn" style="background:#10b981">Download PNG</button>
-      </div>
-
-      <div class="footer">
-        <div>Instructions: ছবিতে ক্লিক করে কালার স্যাম্পল নিন, টেক্সট লিখুন, ফন্ট সাইজ ঠিক করুন, তারপর ছবিতে ক্লিক করে টেক্সট বসান বা ড্র্যাগ করে মুভ করান।</div>
-      </div>
+      <div class="note">How it works: Use OCR to auto-find text boxes that contain digits OR choose manual and click any spot containing digits. Only digits (0–9) are allowed when editing. The tool samples color & approximate size from the image to keep style similar.</div>
     </div>
 
-    <div id="canvasPanel" class="panel" style="min-height:420px">
+    <div class="panel" id="canvasPanel">
       <h2>Canvas / Preview</h2>
-      <div id="canvasWrap">
+      <div style="position:relative">
         <canvas id="canvas" width="900" height="600"></canvas>
       </div>
       <div style="margin-top:8px;display:flex;gap:10px;align-items:center">
-        <div class="muted">Click image to sample color or place text.</div>
+        <div class="muted">Click a detected box (blue outline) or click anywhere in manual mode to replace digits.</div>
       </div>
     </div>
   </div>
 
-<script>
-(() => {
-  const fileIn = document.getElementById('file');
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
-  const textInput = document.getElementById('textInput');
-  const sampleBtn = document.getElementById('sampleBtn');
-  const picked = document.getElementById('picked');
-  const pickedHex = document.getElementById('pickedHex');
-  const drawBtn = document.getElementById('drawBtn');
-  const clearBtn = document.getElementById('clearBtn');
-  const downloadBtn = document.getElementById('downloadBtn');
-  const fontSelect = document.getElementById('fontSelect');
-  const fontSize = document.getElementById('fontSize');
-  const placeBtn = document.getElementById('placeBtn');
-  const dragBtn = document.getElementById('dragBtn');
+  <!-- Tesseract.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+  <script>
+  (function(){
+    const fileIn = document.getElementById('file');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const ocrBtn = document.getElementById('ocrBtn');
+    const manualBtn = document.getElementById('manualBtn');
+    const fontFamily = document.getElementById('fontFamily');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const clearBtn = document.getElementById('clearBtn');
 
-  let img = new Image();
-  let scale = 1;
-  let sampleMode = false;
-  let placeMode = false;
-  let dragMode = false;
-  let overlayTexts = []; // {text,x,y,font,color}
-  let currentDrag = null;
+    let img = new Image();
+    let scale = 1;
+    let mode = 'manual'; // 'ocr' or 'manual'
+    let boxes = []; // detected boxes: {x,y,w,h,text}
+    let edits = []; // applied edits: {boxIndex or manual id, x,y,w,h, newText, color, fontSize, fontFamily}
+    let nextManualId = 1;
 
-  function fitCanvasToImage() {
-    if (!img.width) return;
-    const maxW = Math.max(300, Math.min(1200, window.innerWidth - 420));
-    const maxH = 800;
-    scale = Math.min(maxW / img.width, maxH / img.height, 1);
-    canvas.width = Math.round(img.width * scale);
-    canvas.height = Math.round(img.height * scale);
-    drawAll();
-  }
-
-  function drawAll() {
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    if (img && img.width) ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    overlayTexts.forEach(o=>{
-      ctx.font = o.font;
-      ctx.fillStyle = o.color;
-      ctx.textBaseline = 'top';
-      ctx.fillText(o.text, o.x, o.y);
-    });
-  }
-
-  fileIn.addEventListener('change', e=>{
-    const f = e.target.files && e.target.files[0];
-    if (!f) return;
-    const url = URL.createObjectURL(f);
-    img = new Image();
-    img.onload = () => { fitCanvasToImage(); URL.revokeObjectURL(url); };
-    img.src = url;
-  });
-
-  sampleBtn.addEventListener('click', ()=>{
-    sampleMode = true; placeMode = false; dragMode=false;
-    sampleBtn.textContent = 'Click image to sample color... (Esc to cancel)';
-  });
-
-  placeBtn.addEventListener('click', ()=>{
-    placeMode = true; sampleMode=false; dragMode=false;
-    placeBtn.textContent = 'Click canvas to place text';
-  });
-
-  dragBtn.addEventListener('click', ()=>{
-    dragMode = true; sampleMode=false; placeMode=false;
-    dragBtn.textContent = 'Drag to move enabled';
-  });
-
-  canvas.addEventListener('mousedown', (e)=>{
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left);
-    const y = (e.clientY - rect.top);
-
-    if (sampleMode) {
-      const p = ctx.getImageData(x, y, 1, 1).data;
-      const hex = rgbToHex(p[0],p[1],p[2]);
-      picked.style.background = hex;
-      pickedHex.textContent = hex;
-      sampleMode = false;
-      sampleBtn.textContent = 'Sample color (click this, then click image)';
-      return;
-    }
-
-    if (placeMode) {
-      const text = textInput.value || 'Text';
-      const font = (fontSize.value||48) + 'px ' + fontSelect.options[fontSelect.selectedIndex].text.replace(/\"/g,'');
-      const color = pickedHex.textContent || '#000000';
-      overlayTexts.push({text, x, y, font, color});
+    function fitCanvasToImage(){
+      if(!img.width) return;
+      const maxW = Math.max(300, Math.min(1200, window.innerWidth - 420));
+      const maxH = 800;
+      scale = Math.min(maxW / img.width, maxH / img.height, 1);
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
       drawAll();
-      placeMode=false;
-      placeBtn.textContent = 'Place text by clicking canvas';
-      return;
     }
 
-    if (dragMode) {
-      // find topmost overlay near click
-      for (let i=overlayTexts.length-1;i>=0;i--) {
-        const o = overlayTexts[i];
-        ctx.font = o.font;
-        const w = ctx.measureText(o.text).width;
-        const h = parseInt(o.font)||48;
-        if (x >= o.x && x <= o.x + w && y >= o.y && y <= o.y + h) {
-          currentDrag = {index:i, offsetX: x - o.x, offsetY: y - o.y};
-          break;
-        }
+    function drawAll(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      if(img && img.width) ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      // draw boxes (for OCR)
+      boxes.forEach((b,i)=>{
+        ctx.save();
+        ctx.strokeStyle = 'rgba(37,99,235,0.9)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6,4]);
+        ctx.strokeRect(b.x*b.scale, b.y*b.scale, b.w*b.scale, b.h*b.scale);
+        ctx.restore();
+      });
+      // apply edits
+      edits.forEach(e=>{
+        ctx.save();
+        // clear region by painting white rectangle with same size
+        ctx.fillStyle = 'rgba(255,255,255,1)';
+        ctx.fillRect(e.x, e.y, e.w, e.h);
+        // draw new text centered vertically
+        ctx.fillStyle = e.color || '#000';
+        ctx.font = e.fontSize + 'px ' + (e.fontFamily||'Arial');
+        ctx.textBaseline = 'top';
+        ctx.fillText(e.newText, e.x + 2, e.y + (e.h - e.fontSize)/2);
+        ctx.restore();
+      });
+    }
+
+    fileIn.addEventListener('change', e=>{
+      const f = e.target.files && e.target.files[0];
+      if(!f) return;
+      const url = URL.createObjectURL(f);
+      img = new Image();
+      img.onload = ()=>{ fitCanvasToImage(); URL.revokeObjectURL(url); boxes=[]; edits=[]; }
+      img.src = url;
+    });
+
+    ocrBtn.addEventListener('click', async ()=>{
+      if(!img || !img.src) { alert('Please upload an image first'); return; }
+      mode = 'ocr';
+      boxes = []; edits = [];
+      drawAll();
+      ocrBtn.textContent = 'Detecting...';
+      try{
+        const worker = Tesseract.createWorker({logger:m=>{ /* console.log(m) */ }});
+        await worker.load();
+        await worker.loadLanguage('eng');
+        await worker.initialize('eng');
+        const { data } = await worker.recognize(img);
+        // data.words contains words with bbox
+        data.words.forEach(w=>{
+          // keep only words that have at least one digit
+          if(/[0-9]/.test(w.text)){
+            boxes.push({x: w.bbox.x0, y: w.bbox.y0, w: w.bbox.x1 - w.bbox.x0, h: w.bbox.y1 - w.bbox.y0, text: w.text, scale: scale});
+          }
+        });
+        await worker.terminate();
+        if(boxes.length===0) alert('No digit-containing words detected. Try manual mode.');
+        fitCanvasToImage();
+      }catch(err){
+        console.error(err); alert('OCR failed: '+err.message);
+      }finally{ ocrBtn.textContent = 'Auto-detect digits (OCR)'; }
+    });
+
+    manualBtn.addEventListener('click', ()=>{ mode='manual'; boxes=[]; edits=[]; drawAll(); alert('Manual mode: click on the image where digits appear to edit.'); });
+
+    canvas.addEventListener('click', e=>{
+      if(!img || !img.width) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left; const y = e.clientY - rect.top;
+
+      // if in OCR mode and clicked a detected box, open editor for that box
+      if(mode==='ocr'){
+        const foundIndex = boxes.findIndex(b=>{
+          const bx = b.x*b.scale, by = b.y*b.scale, bw=b.w*b.scale, bh=b.h*b.scale;
+          return x>=bx && x<=bx+bw && y>=by && y<=by+bh;
+        });
+        if(foundIndex!==-1){ openEditorForBox(foundIndex); return; }
       }
+
+      // manual mode: determine a reasonable box around click by sampling neighbors
+      if(mode==='manual'){
+        // we'll create a fixed-size box based on typical font size guess
+        const boxW = 120; const boxH = 40;
+        openEditorForManual({x: x - boxW/2, y: y - boxH/2, w: boxW, h: boxH});
+      }
+    });
+
+    function sampleColorAt(cx, cy){
+      try{
+        const p = ctx.getImageData(Math.max(0,Math.floor(cx)), Math.max(0,Math.floor(cy)), 1,1).data;
+        return 'rgb('+p[0]+','+p[1]+','+p[2]+')';
+      }catch(e){ return '#000'; }
     }
-  });
 
-  canvas.addEventListener('mousemove',(e)=>{
-    if (!currentDrag) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left);
-    const y = (e.clientY - rect.top);
-    const o = overlayTexts[currentDrag.index];
-    o.x = x - currentDrag.offsetX;
-    o.y = y - currentDrag.offsetY;
-    drawAll();
-  });
+    function openEditorForBox(index){
+      const b = boxes[index];
+      const bx = b.x*scale, by = b.y*scale, bw = b.w*scale, bh = b.h*scale;
+      // create popup input near box
+      createPopupInput(bx, by, bw, bh, b.text, (newText)=>{
+        // sanitize: keep only english digits
+        const sanitized = (newText || '').replace(/[^0-9]/g,'') || '0';
+        // sample color from center
+        const color = sampleColorAt(bx + bw/2, by + bh/2);
+        const fontSize = Math.max(8, Math.round(bh*0.8));
+        edits.push({boxIndex:index, x:bx, y:by, w:bw, h:bh, newText: sanitized, color: color, fontSize: fontSize, fontFamily: fontFamily.value});
+        drawAll();
+      });
+    }
 
-  window.addEventListener('mouseup', ()=>{ currentDrag = null; });
+    function openEditorForManual(rect){
+      const bx = Math.max(0, Math.min(canvas.width-10, rect.x));
+      const by = Math.max(0, Math.min(canvas.height-10, rect.y));
+      const bw = Math.max(20, Math.min(canvas.width-bx, rect.w));
+      const bh = Math.max(12, Math.min(canvas.height-by, rect.h));
+      createPopupInput(bx, by, bw, bh, '', (newText)=>{
+        const sanitized = (newText || '').replace(/[^0-9]/g,'') || '0';
+        const color = sampleColorAt(bx + bw/2, by + bh/2);
+        const fontSize = Math.max(8, Math.round(bh*0.8));
+        edits.push({id: 'm'+(nextManualId++), x:bx, y:by, w:bw, h:bh, newText: sanitized, color: color, fontSize: fontSize, fontFamily: fontFamily.value});
+        drawAll();
+      });
+    }
 
-  drawBtn.addEventListener('click', ()=>{
-    // draws current typed text at top-left if none placed
-    const text = textInput.value || 'Text';
-    const font = (fontSize.value||48) + 'px ' + fontSelect.options[fontSelect.selectedIndex].text.replace(/\"/g,'');
-    const color = pickedHex.textContent || '#000000';
-    overlayTexts.push({text, x:20, y:20, font, color});
-    drawAll();
-  });
+    function createPopupInput(x,y,w,h, defaultText, onSave){
+      // remove existing
+      const existing = document.querySelector('.input-popup'); if(existing) existing.remove();
+      const popup = document.createElement('div'); popup.className='input-popup';
+      popup.style.left = (x + 10) + 'px'; popup.style.top = (Math.min(y + h + 10, window.innerHeight - 80)) + 'px';
+      popup.innerHTML = `
+        <div style="font-size:13px;margin-bottom:6px">Edit digits (0-9 only)</div>
+        <input id="digitEdit" type="text" inputmode="numeric" pattern="[0-9]*" style="padding:8px;border:1px solid #e6e9ef;border-radius:8px;width:220px" value="${defaultText.replace(/[^0-9]/g,'')}">
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="saveBtn" style="padding:8px 10px;border-radius:8px">Save</button>
+          <button id="cancelBtn" style="padding:8px 10px;border-radius:8px;background:#ef4444;color:#fff">Cancel</button>
+        </div>
+      `;
+      document.body.appendChild(popup);
+      const input = popup.querySelector('#digitEdit'); input.focus(); input.select();
+      popup.querySelector('#saveBtn').addEventListener('click', ()=>{ onSave(input.value); popup.remove(); });
+      popup.querySelector('#cancelBtn').addEventListener('click', ()=>{ popup.remove(); });
+      // close on outside click
+      setTimeout(()=>{ window.addEventListener('click', outsideClick); },50);
+      function outsideClick(evt){ if(!popup.contains(evt.target)) { popup.remove(); window.removeEventListener('click', outsideClick); } }
+    }
 
-  clearBtn.addEventListener('click', ()=>{
-    overlayTexts = []; drawAll();
-  });
+    downloadBtn.addEventListener('click', ()=>{
+      const link = document.createElement('a'); link.download = 'edited-image.png'; link.href = canvas.toDataURL('image/png'); link.click();
+    });
 
-  downloadBtn.addEventListener('click', ()=>{
-    const link = document.createElement('a');
-    link.download = 'edited-image.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  });
+    clearBtn.addEventListener('click', ()=>{ boxes=[]; edits=[]; drawAll(); });
 
-  // cancel keys
-  window.addEventListener('keydown',(e)=>{
-    if (e.key === 'Escape') { sampleMode=false; placeMode=false; dragMode=false; sampleBtn.textContent='Sample color (click this, then click image)'; placeBtn.textContent='Place text by clicking canvas'; dragBtn.textContent='Drag to move'; }
-  });
-
-  function componentToHex(c) { const hex = c.toString(16); return hex.length == 1 ? '0' + hex : hex; }
-  function rgbToHex(r,g,b) { return '#' + componentToHex(r) + componentToHex(g) + componentToHex(b); }
-
-  // responsive: redraw if window resize
-  window.addEventListener('resize', ()=>{ fitCanvasToImage(); });
-
-  // initialize blank canvas
-  ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
-})();
-</script>
+    window.addEventListener('resize', ()=>{ fitCanvasToImage(); });
+    // initial blank
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  })();
+  </script>
 </body>
 </html>
