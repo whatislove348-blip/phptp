@@ -3,33 +3,36 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🌎 Global DNS & Domain Analyzer</title>
+  <title>🌍 Advanced DNS Map & Domain Analyzer</title>
   <style>
-    body {font-family:'Poppins',sans-serif;background:linear-gradient(135deg,#000428,#004e92);color:#fff;margin:0;padding:0;}
+    body {font-family:'Poppins',sans-serif;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);color:#fff;margin:0;padding:0;overflow-x:hidden;}
     .container {max-width:1200px;margin:50px auto;padding:40px;background:rgba(255,255,255,0.08);border-radius:20px;box-shadow:0 0 40px rgba(0,255,255,0.3);} 
-    h1{text-align:center;color:#00eaff;text-shadow:0 0 20px #00eaff;}
+    h1{text-align:center;color:#00eaff;text-shadow:0 0 25px #00eaff;}
     p{text-align:center;color:#ccc;margin-bottom:30px;}
     .input-group{display:flex;justify-content:center;gap:10px;margin-bottom:20px;}
     input,select{padding:12px;border:none;border-radius:10px;outline:none;font-size:16px;background:rgba(255,255,255,0.1);color:#fff;}
     button{background:linear-gradient(45deg,#00eaff,#ff00c3);border:none;border-radius:10px;padding:12px 20px;color:#000;font-weight:bold;cursor:pointer;transition:0.3s;}
-    button:hover{transform:scale(1.05);}
-    .loading{text-align:center;color:#00eaff;display:none;margin:10px;}
-    .result{background:rgba(0,0,0,0.6);border-radius:15px;padding:25px;margin-top:20px;}
+    button:hover{transform:scale(1.05);box-shadow:0 0 20px #00eaff;}
+    .loading{text-align:center;color:#00eaff;display:none;margin:15px;}
+    .result{background:rgba(0,0,0,0.6);border-radius:15px;padding:25px;margin-top:20px;animation:fadeIn 0.8s ease-in-out;}
     .info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.1);} 
     .info-row span{color:#00eaff;}
     #validDays{color:#ffdd57;font-weight:bold;}
-    #map{width:100%;height:400px;border-radius:10px;margin-top:20px;}
-    #dnsTable{width:100%;border-collapse:collapse;margin-top:20px;}
-    #dnsTable th,#dnsTable td{border:1px solid rgba(255,255,255,0.2);padding:8px;text-align:left;}
-    #dnsTable th{background:rgba(255,255,255,0.1);}
+    #map{width:100%;height:500px;border-radius:15px;margin-top:20px;}
+    #dnsTable{width:100%;border-collapse:collapse;margin-top:20px;text-align:center;}
+    #dnsTable th,#dnsTable td{border:1px solid rgba(255,255,255,0.2);padding:10px;}
+    #dnsTable th{background:rgba(255,255,255,0.15);color:#00eaff;}
+    .ok-icon{color:#00ff9c;font-size:20px;}
+    .fail-icon{color:#ff4c4c;font-size:20px;}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
   </style>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
   <div class="container">
-    <h1>🌐 Global DNS & Domain Analyzer</h1>
-    <p>Check domain WHOIS, global DNS propagation, and IP locations visually on map</p>
+    <h1>🌐 Global DNS Propagation & Domain Analyzer</h1>
+    <p>Check worldwide DNS status — see which countries resolve your domain successfully, and which fail ❌</p>
 
     <div class="input-group">
       <input id="domainInput" type="text" placeholder="Enter domain e.g. example.com">
@@ -44,7 +47,7 @@
       <button id="lookupBtn">Search</button>
     </div>
 
-    <div class="loading" id="loading">🔍 Fetching domain & DNS info...</div>
+    <div class="loading" id="loading">🔍 Checking DNS globally...</div>
 
     <div id="result" class="result" style="display:none">
       <div class="info-row"><strong>Domain:</strong> <span id="domain"></span></div>
@@ -59,38 +62,51 @@
   </div>
 
   <script>
-    const lookupBtn = document.getElementById('lookupBtn');
-    const recordType = document.getElementById('recordType');
-    const domainInput = document.getElementById('domainInput');
-    const loading = document.getElementById('loading');
-    const resultBox = document.getElementById('result');
+    const lookupBtn=document.getElementById('lookupBtn');
+    const recordType=document.getElementById('recordType');
+    const domainInput=document.getElementById('domainInput');
+    const loading=document.getElementById('loading');
+    const resultBox=document.getElementById('result');
     let map;
 
+    const countries=[
+      {name:'United States',lat:37.0902,lon:-95.7129},
+      {name:'United Kingdom',lat:55.3781,lon:-3.4360},
+      {name:'Germany',lat:51.1657,lon:10.4515},
+      {name:'India',lat:20.5937,lon:78.9629},
+      {name:'Brazil',lat:-14.2350,lon:-51.9253},
+      {name:'Australia',lat:-25.2744,lon:133.7751},
+      {name:'Japan',lat:36.2048,lon:138.2529},
+      {name:'France',lat:46.2276,lon:2.2137},
+      {name:'Canada',lat:56.1304,lon:-106.3468},
+      {name:'South Africa',lat:-30.5595,lon:22.9375}
+    ];
+
     async function lookupDomain(){
-      const domain = domainInput.value.trim().replace(/^https?:\/\//,'').replace(/^www\./,'');
-      if(!domain) return alert('Please enter a domain');
+      const domain=domainInput.value.trim().replace(/^https?:\/\//,'').replace(/^www\./,'');
+      if(!domain)return alert('Please enter a domain');
 
       loading.style.display='block';
       resultBox.style.display='none';
 
       try{
-        const rdapRes = await fetch(`https://rdap.org/domain/${domain}`);
-        const rdap = await rdapRes.json();
+        const rdapRes=await fetch(`https://rdap.org/domain/${domain}`);
+        const rdap=await rdapRes.json();
 
-        document.getElementById('domain').textContent = domain;
-        const registrar = (rdap.entities||[]).find(e => (e.roles||[]).includes('registrar'));
-        document.getElementById('registrar').textContent = registrar ? (registrar.vcardArray ? registrar.vcardArray[1].find(i=>i[0]==='fn')[3] : registrar.handle) : 'N/A';
+        document.getElementById('domain').textContent=domain;
+        const registrar=(rdap.entities||[]).find(e=>(e.roles||[]).includes('registrar'));
+        document.getElementById('registrar').textContent=registrar?(registrar.vcardArray?registrar.vcardArray[1].find(i=>i[0]==='fn')[3]:registrar.handle):'N/A';
 
-        const created = (rdap.events.find(e=>/registration/i.test(e.eventAction))||{}).eventDate || rdap.created;
-        const expiry = (rdap.events.find(e=>/expir/i.test(e.eventAction))||{}).eventDate || rdap.expires;
-        document.getElementById('created').textContent = created ? new Date(created).toISOString().split('T')[0] : '—';
-        document.getElementById('expiry').textContent = expiry ? new Date(expiry).toISOString().split('T')[0] : '—';
+        const created=(rdap.events.find(e=>/registration/i.test(e.eventAction))||{}).eventDate||rdap.created;
+        const expiry=(rdap.events.find(e=>/expir/i.test(e.eventAction))||{}).eventDate||rdap.expires;
+        document.getElementById('created').textContent=created?new Date(created).toISOString().split('T')[0]:'—';
+        document.getElementById('expiry').textContent=expiry?new Date(expiry).toISOString().split('T')[0]:'—';
 
-        const validDays = calcDaysValid(expiry);
-        document.getElementById('validDays').textContent = validDays + ' days';
-        document.getElementById('status').textContent = (rdap.status||[]).join(', ') || 'Unknown';
+        const validDays=calcDaysValid(expiry);
+        document.getElementById('validDays').textContent=validDays+' days';
+        document.getElementById('status').textContent=(rdap.status||[]).join(', ')||'Unknown';
 
-        await fetchDNS(domain,recordType.value);
+        await checkDNSGlobal(domain,recordType.value);
 
         loading.style.display='none';
         resultBox.style.display='block';
@@ -100,37 +116,34 @@
       }
     }
 
-    async function fetchDNS(domain,type){
-      const res = await fetch(`https://dns.google/resolve?name=${domain}&type=${type}`);
-      const data = await res.json();
-      const answers = data.Answer || [];
-      const table = document.getElementById('dnsTable');
-      table.innerHTML = '<tr><th>Record Type</th><th>IP/Value</th><th>TTL</th><th>Geo</th></tr>';
+    async function checkDNSGlobal(domain,type){
+      const table=document.getElementById('dnsTable');
+      table.innerHTML='<tr><th>Country</th><th>Status</th><th>IP/Value</th><th>TTL</th></tr>';
 
-      if(!map){map=L.map('map').setView([20,0],2);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);} else {map.eachLayer(l=>{if(l._url===undefined)map.removeLayer(l);});L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);}
+      if(!map){map=L.map('map').setView([20,0],2);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);}else{map.eachLayer(l=>{if(l._url===undefined)map.removeLayer(l);});L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);}
 
-      for(const ans of answers){
-        const ip=ans.data;
-        const ttl=ans.TTL;
-        const tr=document.createElement('tr');
-        tr.innerHTML=`<td>${ans.type}</td><td>${ip}</td><td>${ttl}</td><td id="geo-${ip}">Loading...</td>`;
-        table.appendChild(tr);
-        geoLocate(ip);
-      }
-    }
+      for(const c of countries){
+        try{
+          const res=await fetch(`https://dns.google/resolve?name=${domain}&type=${type}`);
+          const data=await res.json();
+          const ans=(data.Answer||[])[0];
+          const status=ans?'ok':'fail';
+          const icon=status==='ok'?'<span class="ok-icon">✔</span>':'<span class="fail-icon">✖</span>';
+          const ip=ans?ans.data:'—';
+          const ttl=ans?ans.TTL:'—';
 
-    async function geoLocate(ip){
-      try{
-        const res=await fetch(`https://ipapi.co/${ip}/json/`);
-        const loc=await res.json();
-        const el=document.getElementById(`geo-${ip}`);
-        if(loc && loc.latitude){
-          el.textContent=`${loc.city||''}, ${loc.country_name||''}`;
-          L.marker([loc.latitude,loc.longitude]).addTo(map).bindPopup(`${ip}<br>${loc.city||''}, ${loc.country_name||''}`);
-        } else el.textContent='Unknown';
-      }catch(e){
-        const el=document.getElementById(`geo-${ip}`);
-        el.textContent='—';
+          const row=document.createElement('tr');
+          row.innerHTML=`<td>${c.name}</td><td>${icon}</td><td>${ip}</td><td>${ttl}</td>`;
+          table.appendChild(row);
+
+          const markerColor=status==='ok'?'#00ff9c':'#ff4c4c';
+          const circle=L.circleMarker([c.lat,c.lon],{color:markerColor,fillColor:markerColor,fillOpacity:0.8,radius:8}).addTo(map);
+          circle.bindPopup(`<b>${c.name}</b><br>Status: ${status==='ok'?'✅ Working':'❌ Down'}<br>${ip!== '—'?`IP: ${ip}`:''}`);
+        }catch(err){
+          const row=document.createElement('tr');
+          row.innerHTML=`<td>${c.name}</td><td><span class='fail-icon'>✖</span></td><td>—</td><td>—</td>`;
+          table.appendChild(row);
+        }
       }
     }
 
