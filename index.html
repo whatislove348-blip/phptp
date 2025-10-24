@@ -1,198 +1,114 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>RDAP WHOIS Lookup — Single File</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔥 Domain Power Lookup 🔥</title>
   <style>
-    :root{--bg:#0f1724;--card:#0b1220;--muted:#94a3b8;--accent:#38bdf8}
-    body{font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,Arial; background:linear-gradient(180deg,#071025 0%, #071428 100%);color:#e6eef8;margin:0;padding:24px}
-    .wrap{max-width:920px;margin:20px auto}
-    header{display:flex;gap:16px;align-items:center}
-    h1{font-size:18px;margin:0}
-    p.lead{margin:6px 0 18px;color:var(--muted)}
-    .card{background:var(--card);border-radius:10px;padding:16px;box-shadow:0 6px 18px rgba(2,6,23,.6)}
-    .controls{display:flex;gap:8px;margin-bottom:12px}
-    input[type=text]{flex:1;padding:10px;border-radius:8px;border:1px solid #112033;background:transparent;color:inherit}
-    button{padding:10px 12px;border-radius:8px;border:0;background:var(--accent);color:#021124;cursor:pointer}
-    .result-grid{display:grid;grid-template-columns:1fr 360px;gap:12px;margin-top:12px}
-    .info{padding:12px;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))}
-    .meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
-    .tag{background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:6px;font-size:13px;color:var(--muted)}
-    pre{white-space:pre-wrap;word-break:break-word;max-height:520px;overflow:auto;background:#021124;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.03)}
-    .kv{display:flex;gap:8px;align-items:flex-start;margin:6px 0}
-    .k{width:140px;color:var(--muted);font-size:13px}
-    .v{font-weight:600}
-    .small{font-size:13px;color:var(--muted)}
-    footer{margin-top:18px;color:var(--muted);font-size:13px}
-    .error{color:#ffc1c1;background:rgba(255,20,20,0.04);padding:8px;border-radius:8px}
-    @media (max-width:900px){.result-grid{grid-template-columns:1fr}}
+    body {font-family: 'Poppins', sans-serif; background: radial-gradient(circle at top left, #2c003e, #000000 80%); color: #fff; margin: 0; padding: 0;}
+    .container {max-width: 1000px; margin: 50px auto; padding: 30px; background: rgba(255,255,255,0.1); border-radius: 20px; box-shadow: 0 0 40px rgba(255,255,255,0.2);}
+    h1 {text-align: center; font-size: 2rem; color: #00ffff; text-shadow: 0 0 20px #00ffff; margin-bottom: 10px;}
+    p {text-align: center; color: #ccc; margin-bottom: 30px;}
+    .input-group {display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;}
+    input {flex: 1; padding: 12px; border-radius: 10px; border: none; outline: none; font-size: 16px;}
+    button {background: linear-gradient(45deg, #00ffff, #ff00ff); border: none; color: #000; font-weight: bold; border-radius: 10px; padding: 12px 20px; cursor: pointer; transition: 0.3s;}
+    button:hover {transform: scale(1.05); box-shadow: 0 0 15px #00ffff;}
+    .result {background: rgba(0,0,0,0.5); border-radius: 15px; padding: 20px; animation: fadeIn 0.8s ease-in-out;}
+    .info-row {display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1);}
+    .info-row span {color: #00ffff;}
+    #validDays {color: #ffdd57; font-weight: bold;}
+    .authority {font-size: 1.2rem; margin-top: 10px; color: #ff007f; text-shadow: 0 0 10px #ff007f;}
+    .error {color: #ff5c5c; background: rgba(255,0,0,0.1); padding: 10px; border-radius: 10px; margin-top: 10px; display: none;}
+    @keyframes fadeIn {from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);}}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div>
-        <h1>RDAP WHOIS Lookup</h1>
-        <p class="lead">Enter a domain and get official RDAP JSON (no API key). Quick, free, structured WHOIS data.</p>
-      </div>
-    </header>
+  <div class="container">
+    <h1>🌐 Domain Information Lookup</h1>
+    <p>Check domain validity, authority score, and full WHOIS details instantly!</p>
 
-    <div class="card">
-      <div class="controls">
-        <input id="domainInput" type="text" placeholder="example.com or sub.example.co" value="example.com" />
-        <button id="lookupBtn">Lookup</button>
-        <button id="clearBtn" title="Clear results">Clear</button>
-      </div>
+    <div class="input-group">
+      <input id="domainInput" type="text" placeholder="Enter domain e.g. example.com">
+      <button id="lookupBtn">Lookup</button>
+    </div>
 
-      <div id="error" style="display:none" class="error card"></div>
+    <div id="error" class="error"></div>
 
-      <div class="result-grid">
-        <div class="info card">
-          <div class="meta" id="metaTags"></div>
-
-          <div id="summary">
-            <div class="kv"><div class="k">Domain</div><div class="v" id="outDomain">—</div></div>
-            <div class="kv"><div class="k">Registrar</div><div class="v" id="outRegistrar">—</div></div>
-            <div class="kv"><div class="k">Creation</div><div class="v" id="outCreated">—</div></div>
-            <div class="kv"><div class="k">Updated</div><div class="v" id="outUpdated">—</div></div>
-            <div class="kv"><div class="k">Expiry</div><div class="v" id="outExpiry">—</div></div>
-            <div class="kv"><div class="k">Status</div><div class="v small" id="outStatus">—</div></div>
-
-            <h3 style="margin-top:12px;font-size:14px">Nameservers</h3>
-            <div id="nsList" class="small">—</div>
-
-            <h3 style="margin-top:12px;font-size:14px">Entities (contacts)</h3>
-            <div id="entities" class="small">—</div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-            <strong>Raw RDAP JSON</strong>
-            <button id="copyJson">Copy JSON</button>
-          </div>
-          <pre id="raw">{ "hint": "run a lookup" }</pre>
-        </div>
-      </div>
-
-      <footer>
-        Note: RDAP is the official replacement for raw WHOIS. If your browser blocks cross-origin requests, try a server-side proxy (instructions below).
-      </footer>
-
-      <details style="margin-top:10px;color:var(--muted)">
-        <summary style="cursor:pointer">Advanced / Troubleshooting</summary>
-        <ol>
-          <li>If you see CORS errors, it means the RDAP server rejects your browser request. Use a tiny proxy (example: <code>/proxy?url=...</code> or deploy on Glitch/Netlify functions).</li>
-          <li>RDAP endpoints used: <code>https://rdap.org/domain/{domain}</code> (no key required).</li>
-          <li>Some data can be redacted (GDPR/privacy) — contacts may be limited.</li>
-        </ol>
-      </details>
-
+    <div id="result" class="result" style="display:none">
+      <div class="info-row"><strong>Domain:</strong> <span id="domain"></span></div>
+      <div class="info-row"><strong>Registrar:</strong> <span id="registrar"></span></div>
+      <div class="info-row"><strong>Created:</strong> <span id="created"></span></div>
+      <div class="info-row"><strong>Expires:</strong> <span id="expiry"></span></div>
+      <div class="info-row"><strong>Days Valid:</strong> <span id="validDays"></span></div>
+      <div class="info-row"><strong>Status:</strong> <span id="status"></span></div>
+      <div class="authority">Authority Score: <span id="authorityScore">Calculating...</span></div>
     </div>
   </div>
 
   <script>
-    const domainInput = document.getElementById('domainInput');
     const lookupBtn = document.getElementById('lookupBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const raw = document.getElementById('raw');
+    const domainInput = document.getElementById('domainInput');
+    const resultBox = document.getElementById('result');
     const errorBox = document.getElementById('error');
-    const copyBtn = document.getElementById('copyJson');
 
-    const outDomain = document.getElementById('outDomain');
-    const outRegistrar = document.getElementById('outRegistrar');
-    const outCreated = document.getElementById('outCreated');
-    const outUpdated = document.getElementById('outUpdated');
-    const outExpiry = document.getElementById('outExpiry');
-    const outStatus = document.getElementById('outStatus');
-    const nsList = document.getElementById('nsList');
-    const entitiesDiv = document.getElementById('entities');
-    const metaTags = document.getElementById('metaTags');
+    async function lookupDomain() {
+      const domain = domainInput.value.trim().replace(/^https?:\/\//,'').replace(/^www\./,'');
+      if (!domain) return showError('Please enter a domain name.');
 
-    function setError(msg){
-      if(!msg){errorBox.style.display='none'; errorBox.textContent=''; return}
-      errorBox.style.display='block'; errorBox.textContent=msg;
-    }
+      clearError();
+      resultBox.style.display = 'none';
 
-    function clearResults(){
-      raw.textContent = '{ "hint": "run a lookup" }';
-      outDomain.textContent='—'; outRegistrar.textContent='—'; outCreated.textContent='—'; outUpdated.textContent='—'; outExpiry.textContent='—'; outStatus.textContent='—'; nsList.textContent='—'; entitiesDiv.textContent='—'; metaTags.innerHTML='';
-      setError('');
-    }
-
-    function prettyDate(s){
-      if(!s) return '—';
-      try{const d=new Date(s); if(isNaN(d)) return s; return d.toISOString().slice(0,19).replace('T',' ')}catch(e){return s}
-    }
-
-    function addTag(text){
-      const t=document.createElement('div'); t.className='tag'; t.textContent=text; metaTags.appendChild(t);
-    }
-
-    async function lookupDomain(domain){
-      clearResults();
-      domain = domain.trim().replace(/^https?:\/\//,'').replace(/^www\./,'');
-      if(!domain){ setError('Please enter a domain.'); return }
-
-      outDomain.textContent = domain;
-      addTag('RDAP: rdap.org');
-      addTag('No API key required');
-
-      const url = `https://rdap.org/domain/${encodeURIComponent(domain)}`;
-      try{
-        const res = await fetch(url, {headers:{'Accept':'application/json'}});
-        if(!res.ok){
-          const txt = await res.text();
-          setError(`Lookup failed: ${res.status} ${res.statusText} — ${txt.slice(0,200)}`);
-          raw.textContent = txt;
-          return;
-        }
+      try {
+        const res = await fetch(`https://rdap.org/domain/${domain}`);
+        if (!res.ok) throw new Error('Domain not found or RDAP error');
         const data = await res.json();
-        raw.textContent = JSON.stringify(data, null, 2);
 
-        // Registrar info
-        const registrar = (data.entities||[]).find(e=> (e.roles||[]).includes('registrar')) || null;
-        outRegistrar.textContent = registrar ? (registrar.vcardArray ? (registrar.vcardArray[1].find(i=>i[0]==='fn')?.[3]||registrar.objectClassName||registrar.handle) : (registrar.handle||'—')) : (data.port43 || '—');
+        document.getElementById('domain').textContent = domain;
+        const registrar = (data.entities||[]).find(e => (e.roles||[]).includes('registrar'));
+        document.getElementById('registrar').textContent = registrar ? (registrar.vcardArray ? registrar.vcardArray[1].find(i=>i[0]==='fn')[3] : registrar.handle) : 'N/A';
 
-        // events
-        const events = data.events || [];
-        const getEvent = (type) => { const ev = events.find(e=> (e.eventAction||'').toLowerCase()===type ); return ev? ev.eventDate : null };
-        outCreated.textContent = prettyDate(getEvent('registration')||getEvent('registrar registration')||data.created);
-        outUpdated.textContent = prettyDate(getEvent('last changed')||getEvent('last update of RDAP database')||data.updated);
-        outExpiry.textContent = prettyDate(getEvent('expiry')||getEvent('expiration')||data['events'] && (events.find(e=>/expir/i.test((e.eventAction||'')))?.eventDate) || data.expires);
+        const created = (data.events.find(e=>/registration/i.test(e.eventAction))||{}).eventDate || data.created;
+        const expiry = (data.events.find(e=>/expir/i.test(e.eventAction))||{}).eventDate || data.expires;
+        document.getElementById('created').textContent = formatDate(created);
+        document.getElementById('expiry').textContent = formatDate(expiry);
 
-        // status
-        outStatus.textContent = (data.status || []).join(', ') || '—';
+        const validDays = calcDaysValid(expiry);
+        document.getElementById('validDays').textContent = validDays + ' days';
 
-        // nameservers
-        const nss = data.nameservers || [];
-        nsList.textContent = nss.map(n=> typeof n === 'string' ? n : (n.ldhName||n.handle||JSON.stringify(n))).join(', ') || '—';
+        document.getElementById('status').textContent = (data.status||[]).join(', ') || 'Unknown';
 
-        // entities (contacts)
-        const ents = (data.entities||[]).map(e=>{
-          const name = e.vcardArray ? ( (e.vcardArray[1].find(i=>i[0]==='fn')?.[3]) || e.handle ) : e.handle || e.objectClassName || 'entity';
-          const roles = (e.roles||[]).join(', ');
-          return `${name}${roles? ' — '+roles: ''}`;
-        });
-        entitiesDiv.textContent = ents.join('\n') || '—';
+        // Generate fake authority score based on domain age and validity
+        const age = calcDaysBetween(created, new Date());
+        const score = Math.min(100, Math.max(10, Math.floor((age / 30) + (validDays / 50))));
+        document.getElementById('authorityScore').textContent = score + ' / 100';
 
-      }catch(err){
-        // CORS or network error
-        setError('Network or CORS error: ' + err.message + '\nIf you see CORS issues, use a server-side proxy.');
-        raw.textContent = String(err);
+        resultBox.style.display = 'block';
+      } catch (err) {
+        showError('Error fetching domain data: ' + err.message);
       }
     }
 
-    lookupBtn.addEventListener('click', ()=> lookupDomain(domainInput.value));
-    domainInput.addEventListener('keypress', (e)=>{ if(e.key==='Enter') lookupDomain(domainInput.value)});
-    clearBtn.addEventListener('click', clearResults);
-    copyBtn.addEventListener('click', ()=>{
-      try{ navigator.clipboard.writeText(raw.textContent); copyBtn.textContent='Copied'; setTimeout(()=>copyBtn.textContent='Copy JSON',1200)}catch(e){alert('Copy failed: '+e)}
-    });
+    function formatDate(dateStr){
+      if(!dateStr) return '—';
+      const d = new Date(dateStr);
+      if(isNaN(d)) return dateStr;
+      return d.toISOString().split('T')[0];
+    }
 
-    // run default
-    lookupDomain(domainInput.value);
+    function calcDaysBetween(d1, d2){
+      try { return Math.round((d2 - new Date(d1)) / (1000*60*60*24)); } catch(e){ return 0; }
+    }
+
+    function calcDaysValid(expiry){
+      const diff = new Date(expiry) - new Date();
+      return diff > 0 ? Math.round(diff / (1000*60*60*24)) : 0;
+    }
+
+    function showError(msg){ errorBox.textContent = msg; errorBox.style.display = 'block'; }
+    function clearError(){ errorBox.textContent = ''; errorBox.style.display = 'none'; }
+
+    lookupBtn.addEventListener('click', lookupDomain);
+    domainInput.addEventListener('keypress', (e)=>{ if(e.key==='Enter') lookupDomain(); });
   </script>
 </body>
 </html>
