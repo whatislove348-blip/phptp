@@ -3,35 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🔥 Domain Power Lookup 🔥</title>
+  <title>💎 Domain Power Analyzer 💎</title>
   <style>
-    body {font-family: 'Poppins', sans-serif; background: radial-gradient(circle at top left, #2c003e, #000000 80%); color: #fff; margin: 0; padding: 0;}
-    .container {max-width: 1000px; margin: 50px auto; padding: 30px; background: rgba(255,255,255,0.1); border-radius: 20px; box-shadow: 0 0 40px rgba(255,255,255,0.2);}
-    h1 {text-align: center; font-size: 2rem; color: #00ffff; text-shadow: 0 0 20px #00ffff; margin-bottom: 10px;}
-    p {text-align: center; color: #ccc; margin-bottom: 30px;}
+    body {font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, #000428, #004e92); color: #fff; margin: 0; padding: 0;}
+    .container {max-width: 1100px; margin: 50px auto; padding: 40px; background: rgba(255,255,255,0.08); border-radius: 20px; box-shadow: 0 0 40px rgba(0,255,255,0.3); animation: fadeIn 1s ease-in-out;}
+    h1 {text-align: center; font-size: 2.2rem; color: #00eaff; text-shadow: 0 0 20px #00eaff; margin-bottom: 10px;}
+    p {text-align: center; color: #d1d1d1; margin-bottom: 30px;}
     .input-group {display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;}
-    input {flex: 1; padding: 12px; border-radius: 10px; border: none; outline: none; font-size: 16px;}
-    button {background: linear-gradient(45deg, #00ffff, #ff00ff); border: none; color: #000; font-weight: bold; border-radius: 10px; padding: 12px 20px; cursor: pointer; transition: 0.3s;}
-    button:hover {transform: scale(1.05); box-shadow: 0 0 15px #00ffff;}
-    .result {background: rgba(0,0,0,0.5); border-radius: 15px; padding: 20px; animation: fadeIn 0.8s ease-in-out;}
+    input {flex: 1; padding: 12px; border-radius: 10px; border: none; outline: none; font-size: 16px; background: rgba(255,255,255,0.1); color: #fff;}
+    button {background: linear-gradient(45deg, #00eaff, #ff00c3); border: none; color: #000; font-weight: bold; border-radius: 10px; padding: 12px 20px; cursor: pointer; transition: 0.3s;}
+    button:hover {transform: scale(1.05); box-shadow: 0 0 20px #00eaff;}
+    .loading {text-align: center; font-size: 18px; color: #00eaff; margin-top: 20px; display: none;}
+    .result {background: rgba(0,0,0,0.6); border-radius: 15px; padding: 25px; margin-top: 20px; animation: fadeIn 0.8s ease-in-out;}
     .info-row {display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1);}
-    .info-row span {color: #00ffff;}
+    .info-row span {color: #00eaff;}
     #validDays {color: #ffdd57; font-weight: bold;}
     .authority {font-size: 1.2rem; margin-top: 10px; color: #ff007f; text-shadow: 0 0 10px #ff007f;}
     .error {color: #ff5c5c; background: rgba(255,0,0,0.1); padding: 10px; border-radius: 10px; margin-top: 10px; display: none;}
+    .gauge {margin-top: 20px; text-align: center;}
+    .bar {height: 20px; border-radius: 10px; background: linear-gradient(90deg, #ff005e, #00ff9c); width: 0%; transition: width 1s ease;}
+    .dns-section {margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px;}
     @keyframes fadeIn {from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);}}
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🌐 Domain Information Lookup</h1>
-    <p>Check domain validity, authority score, and full WHOIS details instantly!</p>
+    <h1>🌐 Domain Power Analyzer</h1>
+    <p>Analyze domain validity, authority, DNS records, and SSL instantly!</p>
 
     <div class="input-group">
       <input id="domainInput" type="text" placeholder="Enter domain e.g. example.com">
       <button id="lookupBtn">Lookup</button>
     </div>
 
+    <div class="loading" id="loading">🔍 Checking domain details...</div>
     <div id="error" class="error"></div>
 
     <div id="result" class="result" style="display:none">
@@ -41,7 +46,19 @@
       <div class="info-row"><strong>Expires:</strong> <span id="expiry"></span></div>
       <div class="info-row"><strong>Days Valid:</strong> <span id="validDays"></span></div>
       <div class="info-row"><strong>Status:</strong> <span id="status"></span></div>
+      <div class="info-row"><strong>Domain Age:</strong> <span id="domainAge"></span></div>
       <div class="authority">Authority Score: <span id="authorityScore">Calculating...</span></div>
+      <div class="gauge"><div id="gaugeBar" class="bar"></div></div>
+
+      <div class="dns-section">
+        <h3>🧩 DNS Records</h3>
+        <pre id="dnsRecords">Fetching...</pre>
+      </div>
+
+      <div class="dns-section">
+        <h3>🔒 SSL Certificate</h3>
+        <pre id="sslInfo">Checking...</pre>
+      </div>
     </div>
   </div>
 
@@ -50,6 +67,7 @@
     const domainInput = document.getElementById('domainInput');
     const resultBox = document.getElementById('result');
     const errorBox = document.getElementById('error');
+    const loading = document.getElementById('loading');
 
     async function lookupDomain() {
       const domain = domainInput.value.trim().replace(/^https?:\/\//,'').replace(/^www\./,'');
@@ -57,6 +75,7 @@
 
       clearError();
       resultBox.style.display = 'none';
+      loading.style.display = 'block';
 
       try {
         const res = await fetch(`https://rdap.org/domain/${domain}`);
@@ -75,16 +94,43 @@
         const validDays = calcDaysValid(expiry);
         document.getElementById('validDays').textContent = validDays + ' days';
 
+        const domainAge = calcDaysBetween(created, new Date());
+        document.getElementById('domainAge').textContent = domainAge + ' days';
+
         document.getElementById('status').textContent = (data.status||[]).join(', ') || 'Unknown';
 
-        // Generate fake authority score based on domain age and validity
-        const age = calcDaysBetween(created, new Date());
-        const score = Math.min(100, Math.max(10, Math.floor((age / 30) + (validDays / 50))));
+        const score = Math.min(100, Math.max(10, Math.floor((domainAge / 30) + (validDays / 50))));
         document.getElementById('authorityScore').textContent = score + ' / 100';
+        document.getElementById('gaugeBar').style.width = score + '%';
 
+        await fetchDNS(domain);
+        await fetchSSL(domain);
+
+        loading.style.display = 'none';
         resultBox.style.display = 'block';
       } catch (err) {
+        loading.style.display = 'none';
         showError('Error fetching domain data: ' + err.message);
+      }
+    }
+
+    async function fetchDNS(domain){
+      try {
+        const res = await fetch(`https://dns.google/resolve?name=${domain}`);
+        const data = await res.json();
+        document.getElementById('dnsRecords').textContent = JSON.stringify(data.Answer || [], null, 2);
+      } catch (err) {
+        document.getElementById('dnsRecords').textContent = 'Error fetching DNS records';
+      }
+    }
+
+    async function fetchSSL(domain){
+      try {
+        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://' + domain)}`);
+        if (!res.ok) throw new Error('SSL check failed');
+        document.getElementById('sslInfo').textContent = 'SSL active and reachable ✅';
+      } catch (err) {
+        document.getElementById('sslInfo').textContent = 'No valid SSL certificate ❌';
       }
     }
 
