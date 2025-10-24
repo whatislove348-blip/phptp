@@ -3,41 +3,48 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>💎 Domain Power Analyzer 💎</title>
+  <title>🌎 Global DNS & Domain Analyzer</title>
   <style>
-    body {font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, #000428, #004e92); color: #fff; margin: 0; padding: 0;}
-    .container {max-width: 1100px; margin: 50px auto; padding: 40px; background: rgba(255,255,255,0.08); border-radius: 20px; box-shadow: 0 0 40px rgba(0,255,255,0.3); animation: fadeIn 1s ease-in-out;}
-    h1 {text-align: center; font-size: 2.2rem; color: #00eaff; text-shadow: 0 0 20px #00eaff; margin-bottom: 10px;}
-    p {text-align: center; color: #d1d1d1; margin-bottom: 30px;}
-    .input-group {display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;}
-    input {flex: 1; padding: 12px; border-radius: 10px; border: none; outline: none; font-size: 16px; background: rgba(255,255,255,0.1); color: #fff;}
-    button {background: linear-gradient(45deg, #00eaff, #ff00c3); border: none; color: #000; font-weight: bold; border-radius: 10px; padding: 12px 20px; cursor: pointer; transition: 0.3s;}
-    button:hover {transform: scale(1.05); box-shadow: 0 0 20px #00eaff;}
-    .loading {text-align: center; font-size: 18px; color: #00eaff; margin-top: 20px; display: none;}
-    .result {background: rgba(0,0,0,0.6); border-radius: 15px; padding: 25px; margin-top: 20px; animation: fadeIn 0.8s ease-in-out;}
-    .info-row {display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1);}
-    .info-row span {color: #00eaff;}
-    #validDays {color: #ffdd57; font-weight: bold;}
-    .authority {font-size: 1.2rem; margin-top: 10px; color: #ff007f; text-shadow: 0 0 10px #ff007f;}
-    .error {color: #ff5c5c; background: rgba(255,0,0,0.1); padding: 10px; border-radius: 10px; margin-top: 10px; display: none;}
-    .gauge {margin-top: 20px; text-align: center;}
-    .bar {height: 20px; border-radius: 10px; background: linear-gradient(90deg, #ff005e, #00ff9c); width: 0%; transition: width 1s ease;}
-    .dns-section {margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px;}
-    @keyframes fadeIn {from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);}}
+    body {font-family:'Poppins',sans-serif;background:linear-gradient(135deg,#000428,#004e92);color:#fff;margin:0;padding:0;}
+    .container {max-width:1200px;margin:50px auto;padding:40px;background:rgba(255,255,255,0.08);border-radius:20px;box-shadow:0 0 40px rgba(0,255,255,0.3);} 
+    h1{text-align:center;color:#00eaff;text-shadow:0 0 20px #00eaff;}
+    p{text-align:center;color:#ccc;margin-bottom:30px;}
+    .input-group{display:flex;justify-content:center;gap:10px;margin-bottom:20px;}
+    input,select{padding:12px;border:none;border-radius:10px;outline:none;font-size:16px;background:rgba(255,255,255,0.1);color:#fff;}
+    button{background:linear-gradient(45deg,#00eaff,#ff00c3);border:none;border-radius:10px;padding:12px 20px;color:#000;font-weight:bold;cursor:pointer;transition:0.3s;}
+    button:hover{transform:scale(1.05);}
+    .loading{text-align:center;color:#00eaff;display:none;margin:10px;}
+    .result{background:rgba(0,0,0,0.6);border-radius:15px;padding:25px;margin-top:20px;}
+    .info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.1);} 
+    .info-row span{color:#00eaff;}
+    #validDays{color:#ffdd57;font-weight:bold;}
+    #map{width:100%;height:400px;border-radius:10px;margin-top:20px;}
+    #dnsTable{width:100%;border-collapse:collapse;margin-top:20px;}
+    #dnsTable th,#dnsTable td{border:1px solid rgba(255,255,255,0.2);padding:8px;text-align:left;}
+    #dnsTable th{background:rgba(255,255,255,0.1);}
   </style>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
   <div class="container">
-    <h1>🌐 Domain Power Analyzer</h1>
-    <p>Analyze domain validity, authority, DNS records, and SSL instantly!</p>
+    <h1>🌐 Global DNS & Domain Analyzer</h1>
+    <p>Check domain WHOIS, global DNS propagation, and IP locations visually on map</p>
 
     <div class="input-group">
       <input id="domainInput" type="text" placeholder="Enter domain e.g. example.com">
-      <button id="lookupBtn">Lookup</button>
+      <select id="recordType">
+        <option value="A">A</option>
+        <option value="AAAA">AAAA</option>
+        <option value="CNAME">CNAME</option>
+        <option value="MX">MX</option>
+        <option value="NS">NS</option>
+        <option value="TXT">TXT</option>
+      </select>
+      <button id="lookupBtn">Search</button>
     </div>
 
-    <div class="loading" id="loading">🔍 Checking domain details...</div>
-    <div id="error" class="error"></div>
+    <div class="loading" id="loading">🔍 Fetching domain & DNS info...</div>
 
     <div id="result" class="result" style="display:none">
       <div class="info-row"><strong>Domain:</strong> <span id="domain"></span></div>
@@ -46,115 +53,91 @@
       <div class="info-row"><strong>Expires:</strong> <span id="expiry"></span></div>
       <div class="info-row"><strong>Days Valid:</strong> <span id="validDays"></span></div>
       <div class="info-row"><strong>Status:</strong> <span id="status"></span></div>
-      <div class="info-row"><strong>Domain Age:</strong> <span id="domainAge"></span></div>
-      <div class="authority">Authority Score: <span id="authorityScore">Calculating...</span></div>
-      <div class="gauge"><div id="gaugeBar" class="bar"></div></div>
-
-      <div class="dns-section">
-        <h3>🧩 DNS Records</h3>
-        <pre id="dnsRecords">Fetching...</pre>
-      </div>
-
-      <div class="dns-section">
-        <h3>🔒 SSL Certificate</h3>
-        <pre id="sslInfo">Checking...</pre>
-      </div>
+      <div id="map"></div>
+      <table id="dnsTable"></table>
     </div>
   </div>
 
   <script>
     const lookupBtn = document.getElementById('lookupBtn');
+    const recordType = document.getElementById('recordType');
     const domainInput = document.getElementById('domainInput');
-    const resultBox = document.getElementById('result');
-    const errorBox = document.getElementById('error');
     const loading = document.getElementById('loading');
+    const resultBox = document.getElementById('result');
+    let map;
 
-    async function lookupDomain() {
+    async function lookupDomain(){
       const domain = domainInput.value.trim().replace(/^https?:\/\//,'').replace(/^www\./,'');
-      if (!domain) return showError('Please enter a domain name.');
+      if(!domain) return alert('Please enter a domain');
 
-      clearError();
-      resultBox.style.display = 'none';
-      loading.style.display = 'block';
+      loading.style.display='block';
+      resultBox.style.display='none';
 
-      try {
-        const res = await fetch(`https://rdap.org/domain/${domain}`);
-        if (!res.ok) throw new Error('Domain not found or RDAP error');
-        const data = await res.json();
+      try{
+        const rdapRes = await fetch(`https://rdap.org/domain/${domain}`);
+        const rdap = await rdapRes.json();
 
         document.getElementById('domain').textContent = domain;
-        const registrar = (data.entities||[]).find(e => (e.roles||[]).includes('registrar'));
+        const registrar = (rdap.entities||[]).find(e => (e.roles||[]).includes('registrar'));
         document.getElementById('registrar').textContent = registrar ? (registrar.vcardArray ? registrar.vcardArray[1].find(i=>i[0]==='fn')[3] : registrar.handle) : 'N/A';
 
-        const created = (data.events.find(e=>/registration/i.test(e.eventAction))||{}).eventDate || data.created;
-        const expiry = (data.events.find(e=>/expir/i.test(e.eventAction))||{}).eventDate || data.expires;
-        document.getElementById('created').textContent = formatDate(created);
-        document.getElementById('expiry').textContent = formatDate(expiry);
+        const created = (rdap.events.find(e=>/registration/i.test(e.eventAction))||{}).eventDate || rdap.created;
+        const expiry = (rdap.events.find(e=>/expir/i.test(e.eventAction))||{}).eventDate || rdap.expires;
+        document.getElementById('created').textContent = created ? new Date(created).toISOString().split('T')[0] : '—';
+        document.getElementById('expiry').textContent = expiry ? new Date(expiry).toISOString().split('T')[0] : '—';
 
         const validDays = calcDaysValid(expiry);
         document.getElementById('validDays').textContent = validDays + ' days';
+        document.getElementById('status').textContent = (rdap.status||[]).join(', ') || 'Unknown';
 
-        const domainAge = calcDaysBetween(created, new Date());
-        document.getElementById('domainAge').textContent = domainAge + ' days';
+        await fetchDNS(domain,recordType.value);
 
-        document.getElementById('status').textContent = (data.status||[]).join(', ') || 'Unknown';
-
-        const score = Math.min(100, Math.max(10, Math.floor((domainAge / 30) + (validDays / 50))));
-        document.getElementById('authorityScore').textContent = score + ' / 100';
-        document.getElementById('gaugeBar').style.width = score + '%';
-
-        await fetchDNS(domain);
-        await fetchSSL(domain);
-
-        loading.style.display = 'none';
-        resultBox.style.display = 'block';
-      } catch (err) {
-        loading.style.display = 'none';
-        showError('Error fetching domain data: ' + err.message);
+        loading.style.display='none';
+        resultBox.style.display='block';
+      }catch(err){
+        loading.style.display='none';
+        alert('Error fetching: '+err.message);
       }
     }
 
-    async function fetchDNS(domain){
-      try {
-        const res = await fetch(`https://dns.google/resolve?name=${domain}`);
-        const data = await res.json();
-        document.getElementById('dnsRecords').textContent = JSON.stringify(data.Answer || [], null, 2);
-      } catch (err) {
-        document.getElementById('dnsRecords').textContent = 'Error fetching DNS records';
+    async function fetchDNS(domain,type){
+      const res = await fetch(`https://dns.google/resolve?name=${domain}&type=${type}`);
+      const data = await res.json();
+      const answers = data.Answer || [];
+      const table = document.getElementById('dnsTable');
+      table.innerHTML = '<tr><th>Record Type</th><th>IP/Value</th><th>TTL</th><th>Geo</th></tr>';
+
+      if(!map){map=L.map('map').setView([20,0],2);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);} else {map.eachLayer(l=>{if(l._url===undefined)map.removeLayer(l);});L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);}
+
+      for(const ans of answers){
+        const ip=ans.data;
+        const ttl=ans.TTL;
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>${ans.type}</td><td>${ip}</td><td>${ttl}</td><td id="geo-${ip}">Loading...</td>`;
+        table.appendChild(tr);
+        geoLocate(ip);
       }
     }
 
-    async function fetchSSL(domain){
-      try {
-        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://' + domain)}`);
-        if (!res.ok) throw new Error('SSL check failed');
-        document.getElementById('sslInfo').textContent = 'SSL active and reachable ✅';
-      } catch (err) {
-        document.getElementById('sslInfo').textContent = 'No valid SSL certificate ❌';
+    async function geoLocate(ip){
+      try{
+        const res=await fetch(`https://ipapi.co/${ip}/json/`);
+        const loc=await res.json();
+        const el=document.getElementById(`geo-${ip}`);
+        if(loc && loc.latitude){
+          el.textContent=`${loc.city||''}, ${loc.country_name||''}`;
+          L.marker([loc.latitude,loc.longitude]).addTo(map).bindPopup(`${ip}<br>${loc.city||''}, ${loc.country_name||''}`);
+        } else el.textContent='Unknown';
+      }catch(e){
+        const el=document.getElementById(`geo-${ip}`);
+        el.textContent='—';
       }
     }
 
-    function formatDate(dateStr){
-      if(!dateStr) return '—';
-      const d = new Date(dateStr);
-      if(isNaN(d)) return dateStr;
-      return d.toISOString().split('T')[0];
-    }
+    function calcDaysValid(expiry){const diff=new Date(expiry)-new Date();return diff>0?Math.round(diff/(1000*60*60*24)):0;}
 
-    function calcDaysBetween(d1, d2){
-      try { return Math.round((d2 - new Date(d1)) / (1000*60*60*24)); } catch(e){ return 0; }
-    }
-
-    function calcDaysValid(expiry){
-      const diff = new Date(expiry) - new Date();
-      return diff > 0 ? Math.round(diff / (1000*60*60*24)) : 0;
-    }
-
-    function showError(msg){ errorBox.textContent = msg; errorBox.style.display = 'block'; }
-    function clearError(){ errorBox.textContent = ''; errorBox.style.display = 'none'; }
-
-    lookupBtn.addEventListener('click', lookupDomain);
-    domainInput.addEventListener('keypress', (e)=>{ if(e.key==='Enter') lookupDomain(); });
+    lookupBtn.addEventListener('click',lookupDomain);
+    domainInput.addEventListener('keypress',e=>{if(e.key==='Enter')lookupDomain();});
   </script>
 </body>
 </html>
