@@ -27,15 +27,22 @@
     #dnsTable th{background:rgba(255,255,255,0.15);color:#00eaff;}
     .ok-icon{color:#00ff9c;font-size:20px;}
     .fail-icon{color:#ff4c4c;font-size:20px;}
+    .chart-container {margin-top: 30px; text-align:center;}
+    .summary-box {margin-top: 20px; display:flex; justify-content:space-around; background:rgba(255,255,255,0.1); padding:15px; border-radius:10px;}
+    .summary-item {text-align:center;}
+    .summary-item h3 {color:#00eaff; margin-bottom:5px;}
+    .dark-light-toggle {position:fixed;top:20px;right:20px;background:#00eaff;color:#000;border:none;padding:10px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px #00eaff;}
     @keyframes fadeIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
+  <button class="dark-light-toggle" id="toggleTheme">🌙</button>
   <div class="container">
     <h1>🌐 Global DNS Propagation & Domain Analyzer</h1>
-    <p>Check worldwide DNS status — see which countries resolve your domain successfully, and which fail ❌</p>
+    <p>Check worldwide DNS status, visualize success rate, and track propagation efficiency.</p>
 
     <div class="input-group">
       <input id="domainInput" type="text" placeholder="Enter domain e.g. example.com">
@@ -53,12 +60,14 @@
     <div class="loading" id="loading">🔍 Checking DNS globally...</div>
 
     <div id="result" class="result" style="display:none">
-      <div class="info-row"><strong>Domain:</strong> <span id="domain"></span></div>
-      <div class="info-row"><strong>Registrar:</strong> <span id="registrar"></span></div>
-      <div class="info-row"><strong>Created:</strong> <span id="created"></span></div>
-      <div class="info-row"><strong>Expires:</strong> <span id="expiry"></span></div>
-      <div class="info-row"><strong>Days Valid:</strong> <span id="validDays"></span></div>
-      <div class="info-row"><strong>Status:</strong> <span id="status"></span></div>
+      <div class="summary-box">
+        <div class="summary-item"><h3>Total Countries</h3><span id="totalCountries">0</span></div>
+        <div class="summary-item"><h3>Working</h3><span id="workingCount" style="color:#00ff9c;">0</span></div>
+        <div class="summary-item"><h3>Failed</h3><span id="failedCount" style="color:#ff4c4c;">0</span></div>
+        <div class="summary-item"><h3>Success %</h3><span id="successRate" style="color:#ffdd57;">0%</span></div>
+      </div>
+
+      <canvas id="dnsChart" class="chart-container"></canvas>
       <div id="map"></div>
       <table id="dnsTable"></table>
     </div>
@@ -70,20 +79,23 @@
     const domainInput=document.getElementById('domainInput');
     const loading=document.getElementById('loading');
     const resultBox=document.getElementById('result');
+    const toggleTheme=document.getElementById('toggleTheme');
     let map;
 
-    const countries=[
-      {name:'United States',lat:37.0902,lon:-95.7129},
-      {name:'United Kingdom',lat:55.3781,lon:-3.4360},
-      {name:'Germany',lat:51.1657,lon:10.4515},
-      {name:'India',lat:20.5937,lon:78.9629},
-      {name:'Brazil',lat:-14.2350,lon:-51.9253},
-      {name:'Australia',lat:-25.2744,lon:133.7751},
-      {name:'Japan',lat:36.2048,lon:138.2529},
-      {name:'France',lat:46.2276,lon:2.2137},
-      {name:'Canada',lat:56.1304,lon:-106.3468},
-      {name:'South Africa',lat:-30.5595,lon:22.9375}
-    ];
+    const countries=[{name:'United States',lat:37.09,lon:-95.71},{name:'United Kingdom',lat:55.37,lon:-3.43},{name:'Germany',lat:51.16,lon:10.45},{name:'India',lat:20.59,lon:78.96},{name:'Brazil',lat:-14.23,lon:-51.92},{name:'Australia',lat:-25.27,lon:133.77},{name:'Japan',lat:36.20,lon:138.25},{name:'France',lat:46.22,lon:2.21},{name:'Canada',lat:56.13,lon:-106.34},{name:'South Africa',lat:-30.55,lon:22.93}];
+
+    toggleTheme.addEventListener('click',()=>{
+      document.body.classList.toggle('light');
+      if(document.body.classList.contains('light')){
+        document.body.style.background='linear-gradient(135deg,#ffffff,#c9d6ff)';
+        document.body.style.color='#000';
+        toggleTheme.textContent='🌙';
+      } else {
+        document.body.style.background='linear-gradient(135deg,#0f0c29,#302b63,#24243e)';
+        document.body.style.color='#fff';
+        toggleTheme.textContent='☀️';
+      }
+    });
 
     async function lookupDomain(){
       const domain=domainInput.value.trim().replace(/^https?:\/\//,'').replace(/^www\./,'');
@@ -92,31 +104,10 @@
       loading.style.display='block';
       resultBox.style.display='none';
 
-      try{
-        const rdapRes=await fetch(`https://rdap.org/domain/${domain}`);
-        const rdap=await rdapRes.json();
+      await checkDNSGlobal(domain,recordType.value);
 
-        document.getElementById('domain').textContent=domain;
-        const registrar=(rdap.entities||[]).find(e=>(e.roles||[]).includes('registrar'));
-        document.getElementById('registrar').textContent=registrar?(registrar.vcardArray?registrar.vcardArray[1].find(i=>i[0]==='fn')[3]:registrar.handle):'N/A';
-
-        const created=(rdap.events.find(e=>/registration/i.test(e.eventAction))||{}).eventDate||rdap.created;
-        const expiry=(rdap.events.find(e=>/expir/i.test(e.eventAction))||{}).eventDate||rdap.expires;
-        document.getElementById('created').textContent=created?new Date(created).toISOString().split('T')[0]:'—';
-        document.getElementById('expiry').textContent=expiry?new Date(expiry).toISOString().split('T')[0]:'—';
-
-        const validDays=calcDaysValid(expiry);
-        document.getElementById('validDays').textContent=validDays+' days';
-        document.getElementById('status').textContent=(rdap.status||[]).join(', ')||'Unknown';
-
-        await checkDNSGlobal(domain,recordType.value);
-
-        loading.style.display='none';
-        resultBox.style.display='block';
-      }catch(err){
-        loading.style.display='none';
-        alert('Error fetching: '+err.message);
-      }
+      loading.style.display='none';
+      resultBox.style.display='block';
     }
 
     async function checkDNSGlobal(domain,type){
@@ -124,6 +115,8 @@
       table.innerHTML='<tr><th>Country</th><th>Status</th><th>IP/Value</th><th>TTL</th></tr>';
 
       if(!map){map=L.map('map').setView([20,0],2);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);}else{map.eachLayer(l=>{if(l._url===undefined)map.removeLayer(l);});L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);}
+
+      let success=0,fail=0;
 
       for(const c of countries){
         try{
@@ -142,15 +135,25 @@
           const markerColor=status==='ok'?'#00ff9c':'#ff4c4c';
           const circle=L.circleMarker([c.lat,c.lon],{color:markerColor,fillColor:markerColor,fillOpacity:0.8,radius:8}).addTo(map);
           circle.bindPopup(`<b>${c.name}</b><br>Status: ${status==='ok'?'✅ Working':'❌ Down'}<br>${ip!== '—'?`IP: ${ip}`:''}`);
-        }catch(err){
-          const row=document.createElement('tr');
-          row.innerHTML=`<td>${c.name}</td><td><span class='fail-icon'>✖</span></td><td>—</td><td>—</td>`;
-          table.appendChild(row);
-        }
+
+          status==='ok'?success++:fail++;
+        }catch{fail++;}
       }
+
+      const total=countries.length;
+      document.getElementById('totalCountries').textContent=total;
+      document.getElementById('workingCount').textContent=success;
+      document.getElementById('failedCount').textContent=fail;
+      const rate=Math.round((success/total)*100);
+      document.getElementById('successRate').textContent=rate+'%';
+
+      createChart(success,fail);
     }
 
-    function calcDaysValid(expiry){const diff=new Date(expiry)-new Date();return diff>0?Math.round(diff/(1000*60*60*24)):0;}
+    function createChart(success,fail){
+      const ctx=document.getElementById('dnsChart');
+      new Chart(ctx,{type:'pie',data:{labels:['Working','Failed'],datasets:[{data:[success,fail],backgroundColor:['#00ff9c','#ff4c4c']}]},options:{plugins:{legend:{labels:{color:'#fff'}}}}});
+    }
 
     lookupBtn.addEventListener('click',lookupDomain);
     domainInput.addEventListener('keypress',e=>{if(e.key==='Enter')lookupDomain();});
