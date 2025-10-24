@@ -3,253 +3,196 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Digits-only Image Editor (Click / OCR)</title>
+  <title>RDAP WHOIS Lookup — Single File</title>
   <style>
-    :root{--bg:#f6f7fb}
-    body{font-family:Inter,system-ui,Arial;background:var(--bg);margin:0;padding:18px;color:#0b1220}
-    .wrap{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:360px 1fr;gap:18px}
-    .panel{background:#fff;border-radius:12px;padding:14px;box-shadow:0 6px 20px rgba(12,20,40,0.06)}
-    h2{margin:6px 0 12px;font-size:16px}
-    label{display:block;font-size:13px;margin:8px 0 6px}
-    input[type=file]{width:100%}
-    button,select,input[type=text]{width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ef}
-    .row{display:flex;gap:8px}
-    .muted{color:#6b7280;font-size:13px}
-    canvas{max-width:100%;height:auto;border-radius:8px;border:1px solid #d6dbe8;background:#fff}
-    .color-box{width:34px;height:34px;border-radius:6px;border:1px solid #cfd8ef}
-    .controls{display:flex;gap:8px;margin-top:8px}
-    .small{width:48%}
-    .note{font-size:13px;color:#374151;margin-top:8px}
-    .overlay-rect{position:absolute;border:2px dashed rgba(37,99,235,0.9);pointer-events:none}
-    .input-popup{position:fixed;z-index:9999;background:#fff;padding:8px;border-radius:8px;box-shadow:0 6px 20px rgba(2,6,23,0.2)}
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#94a3b8;--accent:#38bdf8}
+    body{font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,Arial; background:linear-gradient(180deg,#071025 0%, #071428 100%);color:#e6eef8;margin:0;padding:24px}
+    .wrap{max-width:920px;margin:20px auto}
+    header{display:flex;gap:16px;align-items:center}
+    h1{font-size:18px;margin:0}
+    p.lead{margin:6px 0 18px;color:var(--muted)}
+    .card{background:var(--card);border-radius:10px;padding:16px;box-shadow:0 6px 18px rgba(2,6,23,.6)}
+    .controls{display:flex;gap:8px;margin-bottom:12px}
+    input[type=text]{flex:1;padding:10px;border-radius:8px;border:1px solid #112033;background:transparent;color:inherit}
+    button{padding:10px 12px;border-radius:8px;border:0;background:var(--accent);color:#021124;cursor:pointer}
+    .result-grid{display:grid;grid-template-columns:1fr 360px;gap:12px;margin-top:12px}
+    .info{padding:12px;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))}
+    .meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+    .tag{background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:6px;font-size:13px;color:var(--muted)}
+    pre{white-space:pre-wrap;word-break:break-word;max-height:520px;overflow:auto;background:#021124;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.03)}
+    .kv{display:flex;gap:8px;align-items:flex-start;margin:6px 0}
+    .k{width:140px;color:var(--muted);font-size:13px}
+    .v{font-weight:600}
+    .small{font-size:13px;color:var(--muted)}
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+    .error{color:#ffc1c1;background:rgba(255,20,20,0.04);padding:8px;border-radius:8px}
+    @media (max-width:900px){.result-grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="panel">
-      <h2>Digits-only Image Editor</h2>
-      <label>1) Upload image</label>
-      <input id="file" type="file" accept="image/*">
-
-      <label>2) Mode</label>
-      <div class="row">
-        <button id="ocrBtn">Auto-detect digits (OCR)</button>
-        <button id="manualBtn">Manual click mode</button>
+    <header>
+      <div>
+        <h1>RDAP WHOIS Lookup</h1>
+        <p class="lead">Enter a domain and get official RDAP JSON (no API key). Quick, free, structured WHOIS data.</p>
       </div>
+    </header>
 
-      <label>3) Font family (try to match)</label>
-      <select id="fontFamily">
-        <option>Arial</option>
-        <option>Segoe UI</option>
-        <option>Times New Roman</option>
-        <option>Courier New</option>
-        <option>Roboto</option>
-      </select>
-
+    <div class="card">
       <div class="controls">
-        <button id="downloadBtn" class="small">Download PNG</button>
-        <button id="clearBtn" class="small">Reset edits</button>
+        <input id="domainInput" type="text" placeholder="example.com or sub.example.co" value="example.com" />
+        <button id="lookupBtn">Lookup</button>
+        <button id="clearBtn" title="Clear results">Clear</button>
       </div>
 
-      <div class="note">How it works: Use OCR to auto-find text boxes that contain digits OR choose manual and click any spot containing digits. Only digits (0–9) are allowed when editing. The tool samples color & approximate size from the image to keep style similar.</div>
-    </div>
+      <div id="error" style="display:none" class="error card"></div>
 
-    <div class="panel" id="canvasPanel">
-      <h2>Canvas / Preview</h2>
-      <div style="position:relative">
-        <canvas id="canvas" width="900" height="600"></canvas>
+      <div class="result-grid">
+        <div class="info card">
+          <div class="meta" id="metaTags"></div>
+
+          <div id="summary">
+            <div class="kv"><div class="k">Domain</div><div class="v" id="outDomain">—</div></div>
+            <div class="kv"><div class="k">Registrar</div><div class="v" id="outRegistrar">—</div></div>
+            <div class="kv"><div class="k">Creation</div><div class="v" id="outCreated">—</div></div>
+            <div class="kv"><div class="k">Updated</div><div class="v" id="outUpdated">—</div></div>
+            <div class="kv"><div class="k">Expiry</div><div class="v" id="outExpiry">—</div></div>
+            <div class="kv"><div class="k">Status</div><div class="v small" id="outStatus">—</div></div>
+
+            <h3 style="margin-top:12px;font-size:14px">Nameservers</h3>
+            <div id="nsList" class="small">—</div>
+
+            <h3 style="margin-top:12px;font-size:14px">Entities (contacts)</h3>
+            <div id="entities" class="small">—</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+            <strong>Raw RDAP JSON</strong>
+            <button id="copyJson">Copy JSON</button>
+          </div>
+          <pre id="raw">{ "hint": "run a lookup" }</pre>
+        </div>
       </div>
-      <div style="margin-top:8px;display:flex;gap:10px;align-items:center">
-        <div class="muted">Click a detected box (blue outline) or click anywhere in manual mode to replace digits.</div>
-      </div>
+
+      <footer>
+        Note: RDAP is the official replacement for raw WHOIS. If your browser blocks cross-origin requests, try a server-side proxy (instructions below).
+      </footer>
+
+      <details style="margin-top:10px;color:var(--muted)">
+        <summary style="cursor:pointer">Advanced / Troubleshooting</summary>
+        <ol>
+          <li>If you see CORS errors, it means the RDAP server rejects your browser request. Use a tiny proxy (example: <code>/proxy?url=...</code> or deploy on Glitch/Netlify functions).</li>
+          <li>RDAP endpoints used: <code>https://rdap.org/domain/{domain}</code> (no key required).</li>
+          <li>Some data can be redacted (GDPR/privacy) — contacts may be limited.</li>
+        </ol>
+      </details>
+
     </div>
   </div>
 
-  <!-- Tesseract.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
   <script>
-  (function(){
-    const fileIn = document.getElementById('file');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const ocrBtn = document.getElementById('ocrBtn');
-    const manualBtn = document.getElementById('manualBtn');
-    const fontFamily = document.getElementById('fontFamily');
-    const downloadBtn = document.getElementById('downloadBtn');
+    const domainInput = document.getElementById('domainInput');
+    const lookupBtn = document.getElementById('lookupBtn');
     const clearBtn = document.getElementById('clearBtn');
+    const raw = document.getElementById('raw');
+    const errorBox = document.getElementById('error');
+    const copyBtn = document.getElementById('copyJson');
 
-    let img = new Image();
-    let scale = 1;
-    let mode = 'manual'; // 'ocr' or 'manual'
-    let boxes = []; // detected boxes: {x,y,w,h,text}
-    let edits = []; // applied edits: {boxIndex or manual id, x,y,w,h, newText, color, fontSize, fontFamily}
-    let nextManualId = 1;
+    const outDomain = document.getElementById('outDomain');
+    const outRegistrar = document.getElementById('outRegistrar');
+    const outCreated = document.getElementById('outCreated');
+    const outUpdated = document.getElementById('outUpdated');
+    const outExpiry = document.getElementById('outExpiry');
+    const outStatus = document.getElementById('outStatus');
+    const nsList = document.getElementById('nsList');
+    const entitiesDiv = document.getElementById('entities');
+    const metaTags = document.getElementById('metaTags');
 
-    function fitCanvasToImage(){
-      if(!img.width) return;
-      const maxW = Math.max(300, Math.min(1200, window.innerWidth - 420));
-      const maxH = 800;
-      scale = Math.min(maxW / img.width, maxH / img.height, 1);
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      drawAll();
+    function setError(msg){
+      if(!msg){errorBox.style.display='none'; errorBox.textContent=''; return}
+      errorBox.style.display='block'; errorBox.textContent=msg;
     }
 
-    function drawAll(){
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      if(img && img.width) ctx.drawImage(img,0,0,canvas.width,canvas.height);
-      // draw boxes (for OCR)
-      boxes.forEach((b,i)=>{
-        ctx.save();
-        ctx.strokeStyle = 'rgba(37,99,235,0.9)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6,4]);
-        ctx.strokeRect(b.x*b.scale, b.y*b.scale, b.w*b.scale, b.h*b.scale);
-        ctx.restore();
-      });
-      // apply edits
-      edits.forEach(e=>{
-        ctx.save();
-        // clear region by painting white rectangle with same size
-        ctx.fillStyle = 'rgba(255,255,255,1)';
-        ctx.fillRect(e.x, e.y, e.w, e.h);
-        // draw new text centered vertically
-        ctx.fillStyle = e.color || '#000';
-        ctx.font = e.fontSize + 'px ' + (e.fontFamily||'Arial');
-        ctx.textBaseline = 'top';
-        ctx.fillText(e.newText, e.x + 2, e.y + (e.h - e.fontSize)/2);
-        ctx.restore();
-      });
+    function clearResults(){
+      raw.textContent = '{ "hint": "run a lookup" }';
+      outDomain.textContent='—'; outRegistrar.textContent='—'; outCreated.textContent='—'; outUpdated.textContent='—'; outExpiry.textContent='—'; outStatus.textContent='—'; nsList.textContent='—'; entitiesDiv.textContent='—'; metaTags.innerHTML='';
+      setError('');
     }
 
-    fileIn.addEventListener('change', e=>{
-      const f = e.target.files && e.target.files[0];
-      if(!f) return;
-      const url = URL.createObjectURL(f);
-      img = new Image();
-      img.onload = ()=>{ fitCanvasToImage(); URL.revokeObjectURL(url); boxes=[]; edits=[]; }
-      img.src = url;
-    });
+    function prettyDate(s){
+      if(!s) return '—';
+      try{const d=new Date(s); if(isNaN(d)) return s; return d.toISOString().slice(0,19).replace('T',' ')}catch(e){return s}
+    }
 
-    ocrBtn.addEventListener('click', async ()=>{
-      if(!img || !img.src) { alert('Please upload an image first'); return; }
-      mode = 'ocr';
-      boxes = []; edits = [];
-      drawAll();
-      ocrBtn.textContent = 'Detecting...';
+    function addTag(text){
+      const t=document.createElement('div'); t.className='tag'; t.textContent=text; metaTags.appendChild(t);
+    }
+
+    async function lookupDomain(domain){
+      clearResults();
+      domain = domain.trim().replace(/^https?:\/\//,'').replace(/^www\./,'');
+      if(!domain){ setError('Please enter a domain.'); return }
+
+      outDomain.textContent = domain;
+      addTag('RDAP: rdap.org');
+      addTag('No API key required');
+
+      const url = `https://rdap.org/domain/${encodeURIComponent(domain)}`;
       try{
-        const worker = Tesseract.createWorker({logger:m=>{ /* console.log(m) */ }});
-        await worker.load();
-        await worker.loadLanguage('eng');
-        await worker.initialize('eng');
-        const { data } = await worker.recognize(img);
-        // data.words contains words with bbox
-        data.words.forEach(w=>{
-          // keep only words that have at least one digit
-          if(/[0-9]/.test(w.text)){
-            boxes.push({x: w.bbox.x0, y: w.bbox.y0, w: w.bbox.x1 - w.bbox.x0, h: w.bbox.y1 - w.bbox.y0, text: w.text, scale: scale});
-          }
+        const res = await fetch(url, {headers:{'Accept':'application/json'}});
+        if(!res.ok){
+          const txt = await res.text();
+          setError(`Lookup failed: ${res.status} ${res.statusText} — ${txt.slice(0,200)}`);
+          raw.textContent = txt;
+          return;
+        }
+        const data = await res.json();
+        raw.textContent = JSON.stringify(data, null, 2);
+
+        // Registrar info
+        const registrar = (data.entities||[]).find(e=> (e.roles||[]).includes('registrar')) || null;
+        outRegistrar.textContent = registrar ? (registrar.vcardArray ? (registrar.vcardArray[1].find(i=>i[0]==='fn')?.[3]||registrar.objectClassName||registrar.handle) : (registrar.handle||'—')) : (data.port43 || '—');
+
+        // events
+        const events = data.events || [];
+        const getEvent = (type) => { const ev = events.find(e=> (e.eventAction||'').toLowerCase()===type ); return ev? ev.eventDate : null };
+        outCreated.textContent = prettyDate(getEvent('registration')||getEvent('registrar registration')||data.created);
+        outUpdated.textContent = prettyDate(getEvent('last changed')||getEvent('last update of RDAP database')||data.updated);
+        outExpiry.textContent = prettyDate(getEvent('expiry')||getEvent('expiration')||data['events'] && (events.find(e=>/expir/i.test((e.eventAction||'')))?.eventDate) || data.expires);
+
+        // status
+        outStatus.textContent = (data.status || []).join(', ') || '—';
+
+        // nameservers
+        const nss = data.nameservers || [];
+        nsList.textContent = nss.map(n=> typeof n === 'string' ? n : (n.ldhName||n.handle||JSON.stringify(n))).join(', ') || '—';
+
+        // entities (contacts)
+        const ents = (data.entities||[]).map(e=>{
+          const name = e.vcardArray ? ( (e.vcardArray[1].find(i=>i[0]==='fn')?.[3]) || e.handle ) : e.handle || e.objectClassName || 'entity';
+          const roles = (e.roles||[]).join(', ');
+          return `${name}${roles? ' — '+roles: ''}`;
         });
-        await worker.terminate();
-        if(boxes.length===0) alert('No digit-containing words detected. Try manual mode.');
-        fitCanvasToImage();
+        entitiesDiv.textContent = ents.join('\n') || '—';
+
       }catch(err){
-        console.error(err); alert('OCR failed: '+err.message);
-      }finally{ ocrBtn.textContent = 'Auto-detect digits (OCR)'; }
-    });
-
-    manualBtn.addEventListener('click', ()=>{ mode='manual'; boxes=[]; edits=[]; drawAll(); alert('Manual mode: click on the image where digits appear to edit.'); });
-
-    canvas.addEventListener('click', e=>{
-      if(!img || !img.width) return;
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left; const y = e.clientY - rect.top;
-
-      // if in OCR mode and clicked a detected box, open editor for that box
-      if(mode==='ocr'){
-        const foundIndex = boxes.findIndex(b=>{
-          const bx = b.x*b.scale, by = b.y*b.scale, bw=b.w*b.scale, bh=b.h*b.scale;
-          return x>=bx && x<=bx+bw && y>=by && y<=by+bh;
-        });
-        if(foundIndex!==-1){ openEditorForBox(foundIndex); return; }
+        // CORS or network error
+        setError('Network or CORS error: ' + err.message + '\nIf you see CORS issues, use a server-side proxy.');
+        raw.textContent = String(err);
       }
+    }
 
-      // manual mode: determine a reasonable box around click by sampling neighbors
-      if(mode==='manual'){
-        // we'll create a fixed-size box based on typical font size guess
-        const boxW = 120; const boxH = 40;
-        openEditorForManual({x: x - boxW/2, y: y - boxH/2, w: boxW, h: boxH});
-      }
+    lookupBtn.addEventListener('click', ()=> lookupDomain(domainInput.value));
+    domainInput.addEventListener('keypress', (e)=>{ if(e.key==='Enter') lookupDomain(domainInput.value)});
+    clearBtn.addEventListener('click', clearResults);
+    copyBtn.addEventListener('click', ()=>{
+      try{ navigator.clipboard.writeText(raw.textContent); copyBtn.textContent='Copied'; setTimeout(()=>copyBtn.textContent='Copy JSON',1200)}catch(e){alert('Copy failed: '+e)}
     });
 
-    function sampleColorAt(cx, cy){
-      try{
-        const p = ctx.getImageData(Math.max(0,Math.floor(cx)), Math.max(0,Math.floor(cy)), 1,1).data;
-        return 'rgb('+p[0]+','+p[1]+','+p[2]+')';
-      }catch(e){ return '#000'; }
-    }
-
-    function openEditorForBox(index){
-      const b = boxes[index];
-      const bx = b.x*scale, by = b.y*scale, bw = b.w*scale, bh = b.h*scale;
-      // create popup input near box
-      createPopupInput(bx, by, bw, bh, b.text, (newText)=>{
-        // sanitize: keep only english digits
-        const sanitized = (newText || '').replace(/[^0-9]/g,'') || '0';
-        // sample color from center
-        const color = sampleColorAt(bx + bw/2, by + bh/2);
-        const fontSize = Math.max(8, Math.round(bh*0.8));
-        edits.push({boxIndex:index, x:bx, y:by, w:bw, h:bh, newText: sanitized, color: color, fontSize: fontSize, fontFamily: fontFamily.value});
-        drawAll();
-      });
-    }
-
-    function openEditorForManual(rect){
-      const bx = Math.max(0, Math.min(canvas.width-10, rect.x));
-      const by = Math.max(0, Math.min(canvas.height-10, rect.y));
-      const bw = Math.max(20, Math.min(canvas.width-bx, rect.w));
-      const bh = Math.max(12, Math.min(canvas.height-by, rect.h));
-      createPopupInput(bx, by, bw, bh, '', (newText)=>{
-        const sanitized = (newText || '').replace(/[^0-9]/g,'') || '0';
-        const color = sampleColorAt(bx + bw/2, by + bh/2);
-        const fontSize = Math.max(8, Math.round(bh*0.8));
-        edits.push({id: 'm'+(nextManualId++), x:bx, y:by, w:bw, h:bh, newText: sanitized, color: color, fontSize: fontSize, fontFamily: fontFamily.value});
-        drawAll();
-      });
-    }
-
-    function createPopupInput(x,y,w,h, defaultText, onSave){
-      // remove existing
-      const existing = document.querySelector('.input-popup'); if(existing) existing.remove();
-      const popup = document.createElement('div'); popup.className='input-popup';
-      popup.style.left = (x + 10) + 'px'; popup.style.top = (Math.min(y + h + 10, window.innerHeight - 80)) + 'px';
-      popup.innerHTML = `
-        <div style="font-size:13px;margin-bottom:6px">Edit digits (0-9 only)</div>
-        <input id="digitEdit" type="text" inputmode="numeric" pattern="[0-9]*" style="padding:8px;border:1px solid #e6e9ef;border-radius:8px;width:220px" value="${defaultText.replace(/[^0-9]/g,'')}">
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button id="saveBtn" style="padding:8px 10px;border-radius:8px">Save</button>
-          <button id="cancelBtn" style="padding:8px 10px;border-radius:8px;background:#ef4444;color:#fff">Cancel</button>
-        </div>
-      `;
-      document.body.appendChild(popup);
-      const input = popup.querySelector('#digitEdit'); input.focus(); input.select();
-      popup.querySelector('#saveBtn').addEventListener('click', ()=>{ onSave(input.value); popup.remove(); });
-      popup.querySelector('#cancelBtn').addEventListener('click', ()=>{ popup.remove(); });
-      // close on outside click
-      setTimeout(()=>{ window.addEventListener('click', outsideClick); },50);
-      function outsideClick(evt){ if(!popup.contains(evt.target)) { popup.remove(); window.removeEventListener('click', outsideClick); } }
-    }
-
-    downloadBtn.addEventListener('click', ()=>{
-      const link = document.createElement('a'); link.download = 'edited-image.png'; link.href = canvas.toDataURL('image/png'); link.click();
-    });
-
-    clearBtn.addEventListener('click', ()=>{ boxes=[]; edits=[]; drawAll(); });
-
-    window.addEventListener('resize', ()=>{ fitCanvasToImage(); });
-    // initial blank
-    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
-  })();
+    // run default
+    lookupDomain(domainInput.value);
   </script>
 </body>
 </html>
