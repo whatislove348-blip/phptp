@@ -1,319 +1,92 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>RDAP Domain Inspector</title>
+  <title>Domain RDAP Inspector</title>
   <style>
+    /* Retain the same beautiful design */
     :root{
-      --bg: #0b1020; /* deep space */
+      --bg: #0b1020;
       --card: rgba(255,255,255,.06);
       --card-2: rgba(255,255,255,.08);
       --text: #e8eefc;
       --muted: #a7b3d4;
-      --accent: #7c3aed; /* violet */
-      --accent-2: #06b6d4; /* cyan */
-      --good: #10b981;
-      --warn: #f59e0b;
-      --bad: #ef4444;
+      --accent: #7c3aed;
+      --accent-2: #06b6d4;
       --ring: #4f46e5;
     }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-      color:var(--text);
-      background:
-        radial-gradient(1200px 600px at 20% -10%, rgba(124,58,237,.25), transparent 60%),
-        radial-gradient(800px 800px at 120% 10%, rgba(6,182,212,.18), transparent 60%),
-        linear-gradient(180deg, #070a16, #0b1020 30%, #0b1020 70%, #0b1020);
-      min-height:100vh; overflow-x:hidden;
-    }
-    .container{max-width:1200px; margin:0 auto; padding:28px 16px 80px}
-    .title{
-      font-size: clamp(24px, 3.6vw, 44px);
-      font-weight:800;
-      letter-spacing:.3px;
-      line-height:1.05;
-      margin:8px 0 18px;
-      background: linear-gradient(90deg, #fff, #c7d2fe 40%, #99f6e4);
-      -webkit-background-clip:text; background-clip:text; color:transparent;
-    }
-    .subtitle{color:var(--muted); margin-top:-10px; font-size:clamp(13px,1.6vw,16px)}
-    .search{
-      display:grid; grid-template-columns: 1fr auto; gap:10px; margin:22px 0 28px;
-      background:var(--card);
-      padding:12px; border:1px solid rgba(255,255,255,.08);
-      border-radius:16px; backdrop-filter: blur(8px);
-      box-shadow: 0 10px 30px rgba(2,6,23,.35);
-    }
-    .search input{width:100%; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); color:var(--text); padding:14px 14px; border-radius:12px; font-size:16px; outline:none}
-    .search input::placeholder{color:#96a1bf}
-    .btn{border:0; padding:14px 18px; font-weight:700; border-radius:12px; cursor:pointer; color:white; background:linear-gradient(90deg, var(--accent), var(--accent-2)); box-shadow:0 8px 20px rgba(124,58,237,.35);}
-    .grid{display:grid; grid-template-columns: repeat(12, 1fr); gap:14px}
-    .card{grid-column: span 12; background:var(--card); border:1px solid rgba(255,255,255,.08); border-radius:18px; padding:16px; backdrop-filter: blur(8px)}
-    .card h3{margin:0 0 10px; font-size:18px; letter-spacing:.2px}
-    .kpis{display:grid; grid-template-columns: repeat(12, 1fr); gap:14px}
-    .kpi{grid-column: span 12; background:var(--card-2); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:14px}
-    .kpi .label{font-size:13px; color:var(--muted)}
-    .kpi .value{font-size:26px; font-weight:800; margin-top:6px}
-    @media (min-width:720px){
-      .kpi{grid-column: span 3}
-      .card.half{grid-column: span 6}
-    }
-    table{width:100%; border-collapse: collapse}
-    th,td{padding:10px 12px; border-bottom:1px dashed rgba(255,255,255,.08); text-align:left; font-size:14px}
-    th{color:#c7d2fe; font-weight:700}
-    .pill{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; font-size:12px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06)}
-    .pill.good{border-color: rgba(16,185,129,.45); background: rgba(16,185,129,.12)}
-    .pill.warn{border-color: rgba(245,158,11,.45); background: rgba(245,158,11,.12)}
-    .pill.bad{border-color: rgba(239,68,68,.45); background: rgba(239,68,68,.12)}
-
-    /* Score Ring */
-    .score-wrap{display:flex; align-items:center; gap:18px}
-    .ring{ --p: 0; width:120px; height:120px; border-radius:50%; background: conic-gradient(var(--ring) calc(var(--p)*1%), rgba(255,255,255,.08) 0); display:grid; place-items:center; position:relative }
-    .ring::after{content:""; position:absolute; inset:8px; background: var(--bg); border-radius:inherit; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06)}
-    .ring strong{position:absolute; font-size:26px}
-    .legend{display:flex; flex-wrap:wrap; gap:10px}
-    .legend .dot{width:10px; height:10px; border-radius:50%; background:var(--ring); display:inline-block; margin-right:6px}
-
-    .json-toggle{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); margin-top:8px}
-    .json{ display:none; white-space:pre-wrap; background: #050814; border:1px solid rgba(255,255,255,.08); padding:12px; border-radius:12px; max-height:320px; overflow:auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:12px}
-
-    .foot{margin-top:18px; color:var(--muted); font-size:12px}
-    .badge{display:inline-block; padding:6px 10px; border-radius:999px; background:rgba(124,58,237,.12); border:1px solid rgba(124,58,237,.35); font-size:12px}
-    .flex{display:flex; gap:12px; align-items:center; flex-wrap:wrap}
-    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+    body{margin:0;font-family:system-ui;background:radial-gradient(1200px 600px at 20% -10%,rgba(124,58,237,.25),transparent 60%),radial-gradient(800px 800px at 120% 10%,rgba(6,182,212,.18),transparent 60%),linear-gradient(180deg,#070a16,#0b1020);color:var(--text)}
+    .container{max-width:1200px;margin:0 auto;padding:28px 16px 80px}
+    .title{font-size:clamp(24px,3.6vw,44px);font-weight:800;background:linear-gradient(90deg,#fff,#c7d2fe 40%,#99f6e4);-webkit-background-clip:text;color:transparent}
+    .subtitle{color:var(--muted)}
+    .search{display:grid;grid-template-columns:1fr auto;gap:10px;background:var(--card);padding:12px;border-radius:16px;margin:22px 0 28px}
+    .search input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:var(--text);padding:14px;border-radius:12px;font-size:16px}
+    .btn{border:0;padding:14px 18px;font-weight:700;border-radius:12px;cursor:pointer;color:white;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+    .card{grid-column:span 12;background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:16px}
+    @media(min-width:720px){.card.half{grid-column:span 6}}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px 12px;border-bottom:1px dashed rgba(255,255,255,.08)}
+    th{color:#c7d2fe}
+    .ring{--p:0;width:120px;height:120px;border-radius:50%;background:conic-gradient(var(--ring) calc(var(--p)*1%),rgba(255,255,255,.08) 0);display:grid;place-items:center;position:relative}
+    .ring::after{content:"";position:absolute;inset:8px;background:var(--bg);border-radius:inherit}
+    .ring strong{position:absolute;font-size:26px}
+    .preview{margin-top:20px;text-align:center}
+    .preview iframe{width:100%;height:400px;border:0;border-radius:12px;background:#0e1425}
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="flex">
-      <span class="badge">Free • RDAP.org</span>
-      <span class="badge">No API Key</span>
-    </div>
-    <h1 class="title">ডোমেইন RDAP Inspector</h1>
-    <p class="subtitle">যেকোন ডোমেইন লিখে সার্চ করুন — রেজিস্ট্রেশন/এক্সপায়ারি, কতদিন ব্যবহৃত, কতদিন বাকি, স্ট্যাটাস ও স্কোর দেখুন।</p>
+    <h1 class="title">Domain RDAP Inspector</h1>
+    <p class="subtitle">Enter any domain to see registration info, expiry, usage days, remaining days, status, and health score.</p>
 
     <form class="search" id="searchForm">
-      <input id="domainInput" type="text" placeholder="উদাহরণ: example.com" autocomplete="off" required>
-      <button class="btn" type="submit">সার্চ</button>
+      <input id="domainInput" type="text" placeholder="example.com" required>
+      <button class="btn" type="submit">Search</button>
     </form>
 
-    <!-- KPIs -->
-    <div class="kpis" id="kpis">
-      <div class="kpi"><div class="label">রেজিস্ট্রেশন তারিখ</div><div class="value" id="created">—</div></div>
-      <div class="kpi"><div class="label">এক্সপায়ারি তারিখ</div><div class="value" id="expiry">—</div></div>
-      <div class="kpi"><div class="label">ব্যবহার হয়েছে (দিন)</div><div class="value" id="usedDays">—</div></div>
-      <div class="kpi"><div class="label">বাকি আছে (দিন)</div><div class="value" id="leftDays">—</div></div>
+    <div id="result"></div>
+
+    <div class="preview" id="previewBox" style="display:none;">
+      <h3>Live Website Preview</h3>
+      <iframe id="previewFrame"></iframe>
     </div>
-
-    <div class="grid" style="margin-top:14px">
-      <section class="card half">
-        <h3>ডোমেইন স্কোর</h3>
-        <div class="score-wrap">
-          <div class="ring" id="ring" style="--p:0"><strong id="score">0</strong></div>
-          <div>
-            <div class="legend"><span><span class="dot"></span>সমন্বিত স্কোর (০–১০০)</span></div>
-            <div style="margin-top:8px; color:var(--muted); font-size:14px">
-              বয়স, বাকি সময়, DNSSEC এবং স্ট্যাটাস মিলিয়ে স্কোর গণনা করা হয়।
-            </div>
-            <div id="scoreNotes" style="margin-top:8px; font-size:13px"></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="card half">
-        <h3>স্ট্যাটাস</h3>
-        <div id="statusChips" class="flex"></div>
-        <div style="margin-top:10px; font-size:13px; color:var(--muted)">নোট: "hold", "pendingDelete" প্রভৃতি স্ট্যাটাস স্কোর কমাতে পারে।</div>
-      </section>
-
-      <section class="card half">
-        <h3>নেমসার্ভার</h3>
-        <table id="nsTable"><thead><tr><th>Host</th><th>IPv4/IPv6</th></tr></thead><tbody></tbody></table>
-      </section>
-
-      <section class="card half">
-        <h3>রেজিস্ট্রার / Entities</h3>
-        <table id="entTable"><thead><tr><th>Role</th><th>Name</th><th>Handle</th></tr></thead><tbody></tbody></table>
-      </section>
-
-      <section class="card">
-        <h3>ইভেন্ট হিস্ট্রি</h3>
-        <table id="eventsTable"><thead><tr><th>Action</th><th>Date (UTC)</th></tr></thead><tbody></tbody></table>
-      </section>
-
-      <section class="card">
-        <h3>Raw JSON</h3>
-        <label class="json-toggle"><input type="checkbox" id="toggleJson"> JSON দেখান/লুকান</label>
-        <pre class="json" id="jsonBox"></pre>
-      </section>
-    </div>
-
-    <div class="foot">ডাটা সোর্স: <span class="mono">https://rdap.org/</span>. এই টুলটি শুধুমাত্র পাবলিক RDAP তথ্য দেখায়।</div>
   </div>
 
 <script>
-const $ = (s, p=document) => p.querySelector(s);
-const $$ = (s, p=document) => Array.from(p.querySelectorAll(s));
-
-const state = { now: new Date() };
-
-function fmtDate(d){
-  if(!d) return '—';
-  try{
-    const dt = (d instanceof Date)? d : new Date(d);
-    return dt.toISOString().replace('T',' ').replace('Z',' UTC');
-  }catch{ return '—'; }
-}
-function daysBetween(a,b){
-  const MS=24*3600*1000; return Math.round((b - a)/MS);
-}
-function safeGetEvent(r, keys){
-  const ev = (r.events||[]).find(e => keys.includes(e.eventAction));
-  return ev?.eventDate || null;
-}
-function statusClass(s){
-  const t = s.toLowerCase();
-  if(t.includes('hold') || t.includes('delete')) return 'pill bad';
-  if(t.includes('pending') || t.includes('transfer')) return 'pill warn';
-  return 'pill good';
-}
-
-function computeScore(r){
-  let notes = [];
-  let score = 0;
-  // Age (max 35)
-  const createdStr = safeGetEvent(r, ['registration','created','creation']);
-  const created = createdStr ? new Date(createdStr) : null;
-  if(created){
-    const years = Math.max(0, (state.now - created)/(365*24*3600*1000));
-    const agePts = Math.min(35, Math.floor(years * 7)); // ~5y => 35
-    score += agePts; notes.push(`বয়স পয়েন্ট +${agePts}`);
-  } else { notes.push('বয়স অজানা (0)'); }
-
-  // Time left (max 25)
-  const expStr = safeGetEvent(r, ['expiration','expiry']);
-  if(expStr){
-    const exp = new Date(expStr);
-    const daysLeft = Math.max(0, daysBetween(state.now, exp));
-    const leftPts = Math.min(25, Math.round((daysLeft/730)*25)); // 2y horizon
-    score += leftPts; notes.push(`বাকি সময় পয়েন্ট +${leftPts}`);
-  } else { notes.push('এক্সপায়ারি অজানা (0)'); }
-
-  // Status quality (max 25)
-  const statuses = (r.status||[]).map(s=>s.toLowerCase());
-  let statusPts = 25;
-  if(statuses.some(s=> s.includes('hold'))) statusPts -= 15;
-  if(statuses.some(s=> s.includes('pendingdelete'))) statusPts -= 10;
-  if(statuses.some(s=> s.includes('clienttransferprohibited') || s.includes('servertransferprohibited'))){
-    statusPts -= 0; // neutral, often normal
-  }
-  if(statusPts<0) statusPts=0;
-  score += statusPts; notes.push(`স্ট্যাটাস পয়েন্ট +${statusPts}`);
-
-  // DNSSEC (max 15)
-  const dnssec = r.secureDNS?.delegationSigned ? true : false;
-  const dnssecPts = dnssec ? 15 : 0;
-  score += dnssecPts; notes.push(dnssec ? 'DNSSEC সক্রিয় +15' : 'DNSSEC নেই (0)');
-
-  score = Math.max(0, Math.min(100, score));
-  return { score, notes };
-}
-
 async function fetchRDAP(domain){
   const url = `https://rdap.org/domain/${encodeURIComponent(domain.trim())}`;
-  const res = await fetch(url, { headers: { 'accept': 'application/rdap+json, application/json' }});
-  if(!res.ok) throw new Error(`RDAP error ${res.status}`);
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Error fetching domain info');
   return await res.json();
 }
-
-function render(r){
-  // KPIs
-  const created = safeGetEvent(r, ['registration','created','creation']);
-  const expiry = safeGetEvent(r, ['expiration','expiry']);
-  $('#created').textContent = created ? fmtDate(created) : '—';
-  $('#expiry').textContent  = expiry ? fmtDate(expiry) : '—';
-
-  let used = '—', left = '—';
-  if(created){ used = daysBetween(new Date(created), state.now); }
-  if(expiry){ left = daysBetween(state.now, new Date(expiry)); }
-  $('#usedDays').textContent = typeof used === 'number' ? used.toLocaleString() : '—';
-  $('#leftDays').textContent = typeof left === 'number' ? left.toLocaleString() : '—';
-
-  // Score
-  const {score, notes} = computeScore(r);
-  $('#score').textContent = score;
-  $('#ring').style.setProperty('--p', score);
-  $('#scoreNotes').innerHTML = notes.map(n=>`• ${n}`).join('<br>');
-
-  // Status chips
-  const box = $('#statusChips'); box.innerHTML='';
-  (r.status||[]).forEach(s=>{
-    const span = document.createElement('span');
-    span.className = statusClass(s); span.textContent = s;
-    box.appendChild(span);
-  });
-  if((r.status||[]).length===0){
-    const span = document.createElement('span'); span.className='pill'; span.textContent='(কোন স্ট্যাটাস ডাটা নেই)'; box.appendChild(span);
-  }
-
-  // Nameservers
-  const nsBody = $('#nsTable tbody'); nsBody.innerHTML='';
-  (r.nameservers||[]).forEach(ns=>{
-    const row = document.createElement('tr');
-    const v4 = (ns.ipv4||[]).join(', ');
-    const v6 = (ns.ipv6||[]).join(', ');
-    row.innerHTML = `<td>${ns.ldhName||ns.handle||'—'}</td><td>${[v4,v6].filter(Boolean).join(' | ')||'—'}</td>`;
-    nsBody.appendChild(row);
-  });
-  if((r.nameservers||[]).length===0){ nsBody.innerHTML = '<tr><td colspan="2">—</td></tr>'; }
-
-  // Entities
-  const entBody = $('#entTable tbody'); entBody.innerHTML='';
-  (r.entities||[]).forEach(e=>{
-    const roles = (e.roles||[]).join(', ');
-    const name = e.vcardArray?.[1]?.find(x=>x[0]==='fn')?.[3] || e.handle || '—';
-    entBody.insertAdjacentHTML('beforeend', `<tr><td>${roles||'—'}</td><td>${name}</td><td>${e.handle||'—'}</td></tr>`);
-  });
-  if((r.entities||[]).length===0){ entBody.innerHTML = '<tr><td colspan="3">—</td></tr>'; }
-
-  // Events
-  const evBody = $('#eventsTable tbody'); evBody.innerHTML='';
-  (r.events||[]).sort((a,b)=> new Date(a.eventDate) - new Date(b.eventDate)).forEach(ev=>{
-    evBody.insertAdjacentHTML('beforeend', `<tr><td>${ev.eventAction}</td><td>${fmtDate(ev.eventDate)}</td></tr>`);
-  });
-  if((r.events||[]).length===0){ evBody.innerHTML = '<tr><td colspan="2">—</td></tr>'; }
-
-  // Raw JSON
-  $('#jsonBox').textContent = JSON.stringify(r, null, 2);
+function fmtDate(d){return d?new Date(d).toISOString().split('T')[0]:'—';}
+function daysBetween(a,b){return Math.round((b-a)/(24*3600*1000));}
+function scoreDomain(r){let s=0;if(r.status) s+=25;if(r.secureDNS?.delegationSigned)s+=15;return Math.min(100,s);}
+function render(data,domain){
+  const created=data.events?.find(e=>e.eventAction.includes('creation'))?.eventDate;
+  const expiry=data.events?.find(e=>e.eventAction.includes('expiration'))?.eventDate;
+  const used=created?daysBetween(new Date(created),new Date()):'—';
+  const left=expiry?daysBetween(new Date(),new Date(expiry)):'—';
+  const score=scoreDomain(data);
+  document.getElementById('result').innerHTML=`
+  <div class='grid'>
+    <div class='card half'><h3>Created</h3><p>${fmtDate(created)}</p></div>
+    <div class='card half'><h3>Expires</h3><p>${fmtDate(expiry)}</p></div>
+    <div class='card half'><h3>Used (days)</h3><p>${used}</p></div>
+    <div class='card half'><h3>Left (days)</h3><p>${left}</p></div>
+    <div class='card'><h3>Status</h3><p>${(data.status||[]).join(', ')||'—'}</p></div>
+    <div class='card'><h3>Score</h3><div class='ring' style='--p:${score}'><strong>${score}</strong></div></div>
+  </div>`;
+  document.getElementById('previewBox').style.display='block';
+  document.getElementById('previewFrame').src=`https://${domain}`;
 }
 
-$('#toggleJson').addEventListener('change', e=>{
-  $('#jsonBox').style.display = e.target.checked ? 'block' : 'none';
-});
-
-$('#searchForm').addEventListener('submit', async (e)=>{
+document.getElementById('searchForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  const domain = $('#domainInput').value.trim();
-  if(!domain) return;
-  const btn = e.submitter; const old = btn.textContent; btn.textContent = 'সার্চিং…'; btn.disabled = true;
-  try{
-    const data = await fetchRDAP(domain);
-    render(data);
-  }catch(err){
-    alert('ডাটা আনতে সমস্যা: ' + err.message);
-  }finally{
-    btn.textContent = old; btn.disabled = false;
-  }
-});
-
-// Demo load
-window.addEventListener('load', async ()=>{
-  const sample = 'example.com';
-  $('#domainInput').value = sample;
-  try{ const d = await fetchRDAP(sample); render(d); }catch{}
+  const domain=document.getElementById('domainInput').value.trim();
+  try{const d=await fetchRDAP(domain);render(d,domain);}catch(err){alert('Failed: '+err.message);}
 });
 </script>
 </body>
